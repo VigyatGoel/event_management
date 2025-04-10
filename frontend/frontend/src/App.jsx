@@ -8,36 +8,35 @@ import './pages/home.css';
 function App() {
   const [page, setPage] = useState('login');
   const [user, setUser] = useState(null);
-  
-  // Check if user is logged in (from localStorage)
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const loggedInUser = localStorage.getItem('user');
     if (loggedInUser) {
       setUser(JSON.parse(loggedInUser));
       setPage('homepage');
     }
+    setLoading(false);
   }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
-    // Save user data to localStorage
     localStorage.setItem('user', JSON.stringify(userData));
     setPage('homepage');
   };
-  
+
   const handleLogout = () => {
     setUser(null);
-    // Remove user data from localStorage
     localStorage.removeItem('user');
     setPage('login');
   };
 
-  // If user is logged in, show homepage
+  if (loading) return null;
+
   if (user) {
     return <Homepage user={user} onLogout={handleLogout} />;
   }
 
-  // Otherwise show login/signup
   return (
     <div className="app-container">
       <h1>Event Management</h1>

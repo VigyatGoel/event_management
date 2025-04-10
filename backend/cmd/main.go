@@ -2,39 +2,43 @@ package main
 
 import (
 	"event_management/backend/database"
-	"event_management/backend/handlers"
+	"event_management/backend/handlers/auth"
 	"log"
 	"net/http"
+	"fmt"
 )
 
-// CORS middleware
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
+
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-		// Handle preflight OPTIONS request
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Call actual handler
 		h(w, r)
 	}
 }
 
 func main() {
-	database.Connect()
+	fmt.Println("Starting the server...")
+	database.InitDB()
 
-	http.HandleFunc("/signup", withCORS(handlers.SignupPage))
-	http.HandleFunc("/signup/submit", withCORS(handlers.SignupHandler))
+	router := http.NewServeMux()
 
-	http.HandleFunc("/login", withCORS(handlers.LoginPage))
-	http.HandleFunc("/login/submit", withCORS(handlers.LoginHandler))
+	router.HandleFunc("POST /signup", withCORS(auth.SignupHandler))
+
+	router.HandleFunc("POST /login", withCORS(auth.LoginHandler))
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
+	}
 
 	log.Println("Server running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(server.ListenAndServe())
 }
