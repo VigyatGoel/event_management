@@ -14,6 +14,7 @@ func withCORS(h http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -30,9 +31,10 @@ func main() {
 
 	router := http.NewServeMux()
 
-	router.HandleFunc("POST /signup", withCORS(auth.SignupHandler))
-
-	router.HandleFunc("POST /login", withCORS(auth.LoginHandler))
+	// Register the routes
+	router.HandleFunc("/signup", withCORS(auth.SignupHandler))
+	router.HandleFunc("/login", withCORS(auth.LoginHandler))
+	router.HandleFunc("/redirect-home", withCORS(auth.HomepageRedirectHandler)) // Add redirect handler here
 
 	server := &http.Server{
 		Addr:    ":8080",

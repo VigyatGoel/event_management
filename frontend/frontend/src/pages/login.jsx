@@ -11,7 +11,7 @@ function Login({ onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     try {
       const res = await fetch("http://localhost:8080/login", {
         method: "POST",
@@ -20,22 +20,17 @@ function Login({ onLoginSuccess }) {
         },
         body: new URLSearchParams(form),
       });
-  
-      let data = {};
-      
-      data = await res.json();
-      
+
+      const data = await res.json();
+
       if (res.ok) {
         setMsg(data.message);
         setIsSuccess(true);
-  
-        localStorage.setItem("token", data.token);
-  
+
         setTimeout(() => {
           onLoginSuccess({
             email: data.email,
             name: data.name,
-            token: data.token,
           });
         }, 1000);
       } else {

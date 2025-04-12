@@ -4,18 +4,33 @@ import { useNavigate } from 'react-router-dom';
 function Homepage({ user, onLogout }) {
   const navigate = useNavigate();
 
-  // Check JWT token on component mount
+  // Check if the user is logged in, and redirect accordingly
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
+    const checkSession = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/redirect-home', {
+          method: 'GET',
+          credentials: 'include', // Important to send cookies with the request
+        });
+
+        if (response.ok) {
+          // Session is valid, stay on the homepage
+          return;
+        } else {
+          // Redirect to login if session is not valid
+          navigate("/login");
+        }
+      } catch (error) {
+        // Redirect to login on error
+        navigate("/login");
+      }
+    };
+
+    checkSession(); // Call the check session on page load
   }, [navigate]);
 
-  // Clear token and logout
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    onLogout(); // optional: can redirect or reset app state
+    onLogout(); // Log the user out and possibly redirect in the parent component
   };
 
   return (

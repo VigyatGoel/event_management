@@ -45,4 +45,5 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		Name:    name,
 		Email:   email,
 	})
+	http.Redirect(w, r, "/login", http.StatusFound)
 }
