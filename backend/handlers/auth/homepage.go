@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"event_management/backend/utils"
 	"encoding/json"
+	"event_management/backend/utils"
 	"net/http"
 )
 

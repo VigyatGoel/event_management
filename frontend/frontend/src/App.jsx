@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Login from './pages/login';
 import Signup from './pages/signup';
-import Homepage from './pages/home';
+import Home from './pages/home';
 import './App.css';
 import './pages/home.css';
 
@@ -21,7 +21,7 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           setUser(data);
-          setPage('homepage');
+          setPage('home');
         }
       } catch (err) {
         console.error('Session check failed:', err);
@@ -35,7 +35,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    setPage('homepage');
+    setPage('home');
   };
 
   const handleLogout = () => {
@@ -52,7 +52,7 @@ function App() {
       <h1>Event Management</h1>
 
       {user ? (
-        <Homepage user={user} onLogout={handleLogout} />
+        <Home user={user} onLogout={handleLogout} />
       ) : (
         <>
           <div className="tab-buttons">

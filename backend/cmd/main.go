@@ -3,9 +3,9 @@ package main
 import (
 	"event_management/backend/database"
 	"event_management/backend/handlers/auth"
+	"fmt"
 	"log"
 	"net/http"
-	"fmt"
 )
 
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
@@ -30,11 +30,10 @@ func main() {
 
 	router := http.NewServeMux()
 
-	// Register routes
-	router.HandleFunc("/signup", withCORS(auth.SignupHandler))
-	router.HandleFunc("/login", withCORS(auth.LoginHandler))
+	router.HandleFunc("POST /signup", withCORS(auth.SignupHandler))
+	router.HandleFunc("POST /login", withCORS(auth.LoginHandler))
 	router.HandleFunc("/session", withCORS(auth.SessionHandler))
-	router.HandleFunc("/logout", withCORS(auth.LogoutHandler))     // Session check route
+	router.HandleFunc("POST /logout", withCORS(auth.LogoutHandler))
 
 	server := &http.Server{
 		Addr:    ":8080",

@@ -1,46 +1,16 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function Home({ user, setUser, onLogout }) {
+function Home({ user, onLogout }) {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch('http://localhost:8080/session', {
-          method: 'GET',
-          credentials: 'include', // Important to send cookies with the request
-        });
-
-        if (response.ok) {
-          // Get user info from the session response
-          const userData = await response.json();
-          setUser(userData); // Set user from session
-        } else {
-          // Redirect to login if session is invalid
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error("Session check failed:", error);
-        navigate("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkSession();
-  }, [navigate, setUser]);
 
   const handleLogout = () => {
-    // Send logout request to backend to clear the session
     fetch("http://localhost:8080/logout", {
       method: "POST",
       credentials: "include",
     })
       .then(() => {
-        onLogout(); // Call logout handler passed as prop
-        navigate("/login"); // Redirect to login page
+        onLogout();
+        navigate("/login");
       })
       .catch((err) => {
         console.error("Logout failed:", err);
@@ -49,11 +19,7 @@ function Home({ user, setUser, onLogout }) {
       });
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) return null;
+  if (!user) return <div>Redirecting...</div>;
 
   return (
     <div className="homepage">
@@ -71,13 +37,8 @@ function Home({ user, setUser, onLogout }) {
 
       <div className="welcome-container">
         <h2>Welcome to the Event Management System</h2>
-        <p>
-          Thank you for logging in to our platform. This system helps you manage and 
-          participate in various events.
-        </p>
-        <p>
-          Stay tuned for upcoming features including:
-        </p>
+        <p>Thank you for logging in to our platform. This system helps you manage and participate in various events.</p>
+        <p>Stay tuned for upcoming features including:</p>
         <ul>
           <li>Creating new events</li>
           <li>Registering for events</li>
