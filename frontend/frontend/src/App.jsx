@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/login';
 import Signup from './pages/signup';
 import Home from './pages/home';
+import AdminPanel from './pages/admin_panel';
 import './App.css';
 import './pages/home.css';
 
 function App() {
-  const [page, setPage] = useState('login');
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // show loading while checking session
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  
+  // Check if we're on the admin panel page
+  const isAdminPanel = location.pathname === '/admin';
 
   useEffect(() => {
     const checkSession = async () => {
@@ -20,13 +25,18 @@ function App() {
 
         if (res.ok) {
           const data = await res.json();
-          setUser(data);
-          setPage('home');
+          
+          // Make sure we have role information from the session
+          setUser({
+            email: data.email,
+            name: data.name,
+            role: data.role
+          });
         }
       } catch (err) {
         console.error('Session check failed:', err);
       } finally {
-        setLoading(false); // either way, done loading
+        setLoading(false);
       }
     };
 
@@ -35,50 +45,70 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    setPage('home');
   };
 
   const handleLogout = () => {
     setUser(null);
-    setPage('login');
   };
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
+  // Return admin panel directly without wrapping it in app container when on admin route
+  if (isAdminPanel && user && user.role === 'admin') {
+    return <AdminPanel user={user} onLogout={handleLogout} />;
+  }
+
   return (
     <div className="app-container">
       <h1>Event Management</h1>
 
-      {user ? (
-        <Home user={user} onLogout={handleLogout} />
-      ) : (
-        <>
-          <div className="tab-buttons">
-            <button
-              className={`tab-button ${page === 'login' ? 'active' : ''}`}
-              onClick={() => setPage('login')}
-            >
-              Login
-            </button>
-            <button
-              className={`tab-button ${page === 'signup' ? 'active' : ''}`}
-              onClick={() => setPage('signup')}
-            >
-              Signup
-            </button>
-          </div>
-
-          <div className="form-container">
-            {page === 'login' ? (
+      <Routes>
+        <Route 
+          path="/login" 
+          element={user ? (
+            <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />
+          ) : (
+            <div className="form-container">
               <Login onLoginSuccess={handleLogin} />
+            </div>
+          )} 
+        />
+        <Route 
+          path="/signup" 
+          element={user ? (
+            <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />
+          ) : (
+            <div className="form-container">
+              <Signup onSignupSuccess={() => navigate('/login')} />
+            </div>
+          )} 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            user && user.role === 'admin' ? (
+              <AdminPanel user={user} onLogout={handleLogout} />
             ) : (
-              <Signup onSignupSuccess={() => setPage('login')} />
-            )}
-          </div>
-        </>
-      )}
+              <Navigate to="/login" replace />
+            )
+          } 
+        />
+        <Route 
+          path="/" 
+          element={user ? (
+            user.role === 'admin' ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <Home user={user} onLogout={handleLogout} />
+            )
+          ) : (
+            <Navigate to="/login" replace />
+          )} 
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }

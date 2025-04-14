@@ -1,7 +1,13 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
 function Login({ onLoginSuccess }) {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    role: "attendee",
+  });
   const [msg, setMsg] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -18,7 +24,7 @@ function Login({ onLoginSuccess }) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        credentials: "include", // ✅ Keep cookies for session
+        credentials: "include",
         body: new URLSearchParams(form),
       });
 
@@ -28,11 +34,20 @@ function Login({ onLoginSuccess }) {
         setMsg(data.message);
         setIsSuccess(true);
 
+        const userData = {
+          email: data.email,
+          name: data.name,
+          role: data.role,
+        };
+
         setTimeout(() => {
-          onLoginSuccess({
-            email: data.email,
-            name: data.name,
-          });
+          onLoginSuccess(userData);
+          // Redirect based on role
+          if (data.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
         }, 1000);
       } else {
         setMsg(data.message || "Login failed. Please check your credentials.");
@@ -68,9 +83,23 @@ function Login({ onLoginSuccess }) {
           value={form.password}
           required
         />
+        <select
+          name="role"
+          className="form-input"
+          value={form.role}
+          onChange={handleChange}
+          required
+        >
+          <option value="attendee">Attendee</option>
+          <option value="organiser">Organiser</option>
+          <option value="admin">Admin</option>
+        </select>
         <button type="submit" className="submit-button">
           Login
         </button>
+        <div className="signup-link">
+          Don't have an account? <Link to="/signup">Sign up</Link>
+        </div>
       </form>
       {msg && (
         <div className={`message ${isSuccess ? "success-message" : "error-message"}`}>

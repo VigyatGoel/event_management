@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"event_management/backend/database"
 	"event_management/backend/models"
-	"golang.org/x/crypto/bcrypt"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
-
 	err := r.ParseForm()
 	if err != nil {
 		writeJSONError(w, "Invalid form data", http.StatusBadRequest)
@@ -19,8 +22,12 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
+	phone := r.FormValue("phone")
+	role := strings.ToLower(r.FormValue("role"))
 
-	if name == "" || email == "" || password == "" {
+	fmt.Println(role)
+
+	if name == "" || email == "" || password == "" || phone == "" || role == "" {
 		writeJSONError(w, "All fields are required", http.StatusBadRequest)
 		return
 	}
@@ -31,10 +38,35 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = database.DB.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-		name, email, hashedPassword)
+	createdAt := time.Now()
+	isAlive := true
+
+	var insertQuery string
+
+	switch role {
+	case "admin":
+		insertQuery = `
+			INSERT INTO admin (name, email, phone, password, isalive, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`
+	case "organiser":
+		insertQuery = `
+			INSERT INTO organiser (name, email, phone, password, isalive, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`
+	case "attendee":
+		insertQuery = `
+			INSERT INTO attendee (name, email, phone, password, isalive, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`
+	default:
+		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
+		return
+	}
+
+	_, err = database.DB.Exec(insertQuery, name, email, phone, hashedPassword, isAlive, createdAt)
 	if err != nil {
-		writeJSONError(w, "Email already registered", http.StatusBadRequest)
+		writeJSONError(w, "Email already registered or DB error", http.StatusBadRequest)
 		return
 	}
 
@@ -44,5 +76,6 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		Message: "Signup successful!",
 		Name:    name,
 		Email:   email,
+		Role:    role,
 	})
 }

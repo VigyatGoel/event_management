@@ -1,7 +1,15 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
-function Signup() {
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+function Signup({ onSignupSuccess }) {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    role: "attendee",
+  });
   const [msg, setMsg] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -21,37 +29,42 @@ function Signup() {
         body: new URLSearchParams(form),
       });
 
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Invalid server response format.");
-      }
-
       const data = await res.json();
 
       if (res.ok) {
-        setMsg(data.message || "Signup successful!");
+        setMsg(data.message);
         setIsSuccess(true);
+
+        // Redirect to login page after successful signup
+        setTimeout(() => {
+          if (onSignupSuccess) {
+            onSignupSuccess();
+          }
+          navigate("/login");
+        }, 2000);
       } else {
         setMsg(data.message || "Signup failed. Please try again.");
         setIsSuccess(false);
       }
     } catch (error) {
       console.error("Signup error:", error);
-      setMsg("Server connection failed. Please try again later.");
+      setMsg(error.message || "Connection error. Please try again.");
       setIsSuccess(false);
     }
   };
 
   return (
-    <div>
+    <div className="signup-container">
       <h2>Create Account</h2>
-      <p>Register to manage and join events</p>
-      <form onSubmit={handleSubmit}>
+      <p>Sign up to start managing events</p>
+      <form onSubmit={handleSubmit} className="signup-form">
         <input
           name="name"
+          type="text"
           placeholder="Full Name"
           className="form-input"
           onChange={handleChange}
+          value={form.name}
           required
         />
         <input
@@ -60,6 +73,7 @@ function Signup() {
           placeholder="Email"
           className="form-input"
           onChange={handleChange}
+          value={form.email}
           required
         />
         <input
@@ -68,11 +82,36 @@ function Signup() {
           placeholder="Password"
           className="form-input"
           onChange={handleChange}
+          value={form.password}
           required
         />
+        <input
+          name="phone"
+          type="tel"
+          placeholder="Phone Number"
+          className="form-input"
+          onChange={handleChange}
+          value={form.phone}
+          required
+        />
+        <select
+          name="role"
+          className="form-input"
+          value={form.role}
+          onChange={handleChange}
+          required
+        >
+          <option value="attendee">Attendee</option>
+          <option value="organiser">Organiser</option>
+          <option value="admin">Admin</option>
+
+        </select>
         <button type="submit" className="submit-button">
-          Create Account
+          Sign Up
         </button>
+        <div className="login-link">
+          Already have an account? <Link to="/login">Login</Link>
+        </div>
       </form>
       {msg && (
         <div className={`message ${isSuccess ? "success-message" : "error-message"}`}>

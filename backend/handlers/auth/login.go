@@ -43,15 +43,36 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	email := r.FormValue("email")
 	password := r.FormValue("password")
+	role := r.FormValue("role")
 
-	if email == "" || password == "" {
-		writeJSONError(w, "Email and password are required", http.StatusBadRequest)
+	if email == "" || password == "" || role == "" {
+		writeJSONError(w, "Email, password and role are required", http.StatusBadRequest)
+		return
+	}
+
+	var searchQuery string
+
+	switch role {
+	case "admin":
+		searchQuery = `
+			SELECT admin_id, name, email, phone, password FROM admin WHERE email=?
+		`
+	case "organiser":
+		searchQuery = `
+			SELECT organiser_id, name, email, phone, password FROM organiser WHERE email=?
+		`
+	case "attendee":
+		searchQuery = `
+			SELECT attendee_id, name, email, phone, password FROM attendee WHERE email=?
+		`
+	default:
+		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
 		return
 	}
 
 	var dbUser models.User
-	err = database.DB.QueryRow("SELECT id, name, email, password FROM users WHERE email=?", email).
-		Scan(&dbUser.ID, &dbUser.Name, &dbUser.Email, &dbUser.Password)
+	err = database.DB.QueryRow(searchQuery, email).
+		Scan(&dbUser.ID, &dbUser.Name, &dbUser.Email, &dbUser.Phone, &dbUser.Password)
 
 	if err != nil {
 		writeJSONError(w, "Invalid login credentials", http.StatusUnauthorized)
@@ -68,6 +89,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["user_id"] = dbUser.ID
 	session.Values["email"] = dbUser.Email
 	session.Values["name"] = dbUser.Name
+	session.Values["role"] = role
 	session.Save(r, w)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -75,6 +97,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Login successful!",
 		"name":    dbUser.Name,
 		"email":   dbUser.Email,
+		"role":    role,
 	})
 }
 
@@ -83,8 +106,9 @@ func SessionHandler(w http.ResponseWriter, r *http.Request) {
 
 	email, ok := session.Values["email"].(string)
 	name, ok2 := session.Values["name"].(string)
+	role, ok3 := session.Values["role"].(string)
 
-	if !ok || !ok2 {
+	if !ok || !ok2 || !ok3 {
 		writeJSONError(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
@@ -93,6 +117,7 @@ func SessionHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Session active",
 		"email":   email,
 		"name":    name,
+		"role":    role,
 	})
 }
 
