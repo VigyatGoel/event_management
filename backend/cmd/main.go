@@ -10,7 +10,6 @@ import (
 
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -31,10 +30,11 @@ func main() {
 
 	router := http.NewServeMux()
 
-	// Register the routes
+	// Register routes
 	router.HandleFunc("/signup", withCORS(auth.SignupHandler))
 	router.HandleFunc("/login", withCORS(auth.LoginHandler))
-	router.HandleFunc("/redirect-home", withCORS(auth.HomepageRedirectHandler)) // Add redirect handler here
+	router.HandleFunc("/session", withCORS(auth.SessionHandler))
+	router.HandleFunc("/logout", withCORS(auth.LogoutHandler))     // Session check route
 
 	server := &http.Server{
 		Addr:    ":8080",

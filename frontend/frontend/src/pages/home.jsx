@@ -1,42 +1,66 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function Homepage({ user, onLogout }) {
+function Home({ user, setUser, onLogout }) {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
-  // Check if the user is logged in, and redirect accordingly
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('http://localhost:8080/redirect-home', {
+        const response = await fetch('http://localhost:8080/session', {
           method: 'GET',
           credentials: 'include', // Important to send cookies with the request
         });
 
         if (response.ok) {
-          // Session is valid, stay on the homepage
-          return;
+          // Get user info from the session response
+          const userData = await response.json();
+          setUser(userData); // Set user from session
         } else {
-          // Redirect to login if session is not valid
+          // Redirect to login if session is invalid
           navigate("/login");
         }
       } catch (error) {
-        // Redirect to login on error
+        console.error("Session check failed:", error);
         navigate("/login");
+      } finally {
+        setLoading(false);
       }
     };
 
-    checkSession(); // Call the check session on page load
-  }, [navigate]);
+    checkSession();
+  }, [navigate, setUser]);
 
   const handleLogout = () => {
-    onLogout(); // Log the user out and possibly redirect in the parent component
+    // Send logout request to backend to clear the session
+    fetch("http://localhost:8080/logout", {
+      method: "POST",
+      credentials: "include",
+    })
+      .then(() => {
+        onLogout(); // Call logout handler passed as prop
+        navigate("/login"); // Redirect to login page
+      })
+      .catch((err) => {
+        console.error("Logout failed:", err);
+        onLogout();
+        navigate("/login");
+      });
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) return null;
 
   return (
     <div className="homepage">
       <div className="homepage-header">
-        <h1>Event Management System</h1>
+        <div className="system-title">
+          <h1>Event Management System</h1>
+        </div>
         <div className="user-info">
           <span>Welcome, {user.name}</span>
           <button className="logout-button" onClick={handleLogout}>
@@ -65,4 +89,4 @@ function Homepage({ user, onLogout }) {
   );
 }
 
-export default Homepage;
+export default Home;

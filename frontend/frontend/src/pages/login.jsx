@@ -18,6 +18,7 @@ function Login({ onLoginSuccess }) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
+        credentials: "include", // ✅ Keep cookies for session
         body: new URLSearchParams(form),
       });
 
@@ -45,16 +46,17 @@ function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div>
+    <div className="login-container">
       <h2>Welcome</h2>
       <p>Enter your credentials to access your account</p>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="login-form">
         <input
           name="email"
           type="email"
           placeholder="Email"
           className="form-input"
           onChange={handleChange}
+          value={form.email}
           required
         />
         <input
@@ -63,6 +65,7 @@ function Login({ onLoginSuccess }) {
           placeholder="Password"
           className="form-input"
           onChange={handleChange}
+          value={form.password}
           required
         />
         <button type="submit" className="submit-button">
