@@ -12,7 +12,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   
-  // Check if we're on the admin panel page
   const isAdminPanel = location.pathname === '/admin';
 
   useEffect(() => {
@@ -26,7 +25,6 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           
-          // Make sure we have role information from the session
           setUser({
             email: data.email,
             name: data.name,
@@ -51,11 +49,14 @@ function App() {
     setUser(null);
   };
 
+  const handleSignupSuccess = () => {
+    console.log("Signup successful!");
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  // Return admin panel directly without wrapping it in app container when on admin route
   if (isAdminPanel && user && user.role === 'admin') {
     return <AdminPanel user={user} onLogout={handleLogout} />;
   }
@@ -81,7 +82,7 @@ function App() {
             <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />
           ) : (
             <div className="form-container">
-              <Signup onSignupSuccess={() => navigate('/login')} />
+              <Signup onSignupSuccess={handleSignupSuccess} />
             </div>
           )} 
         />

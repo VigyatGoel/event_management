@@ -35,7 +35,6 @@ function Signup({ onSignupSuccess }) {
         setMsg(data.message);
         setIsSuccess(true);
 
-        // Redirect to login page after successful signup
         setTimeout(() => {
           if (onSignupSuccess) {
             onSignupSuccess();
