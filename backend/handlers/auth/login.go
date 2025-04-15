@@ -55,15 +55,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	switch role {
 	case "admin":
 		searchQuery = `
-			SELECT admin_id, name, email, phone, password FROM admin WHERE email=?
+			SELECT admin_id, name, email, phone, password FROM admin WHERE email=? AND isalive = 1
 		`
 	case "organiser":
 		searchQuery = `
-			SELECT organiser_id, name, email, phone, password FROM organiser WHERE email=?
+			SELECT organiser_id, name, email, phone, password FROM organiser WHERE email=? AND isalive = 1
 		`
 	case "attendee":
 		searchQuery = `
-			SELECT attendee_id, name, email, phone, password FROM attendee WHERE email=?
+			SELECT attendee_id, name, email, phone, password FROM attendee WHERE email=? AND isalive = 1
 		`
 	default:
 		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)

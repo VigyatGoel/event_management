@@ -157,11 +157,3 @@ func InitDB() {
 
 	log.Println("All tables created successfully.")
 }
-
-// CloseDB closes the database connection
-func CloseDB() {
-	if DB != nil {
-		DB.Close()
-		log.Println("Database connection closed")
-	}
-}

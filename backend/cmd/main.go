@@ -2,6 +2,7 @@ package main
 
 import (
 	"event_management/backend/database"
+	"event_management/backend/handlers"
 	"event_management/backend/handlers/auth"
 	"fmt"
 	"log"
@@ -32,8 +33,10 @@ func main() {
 
 	router.HandleFunc("POST /signup", withCORS(auth.SignupHandler))
 	router.HandleFunc("POST /login", withCORS(auth.LoginHandler))
-	router.HandleFunc("/session", withCORS(auth.SessionHandler))
+	router.HandleFunc("GET /session", withCORS(auth.SessionHandler))
 	router.HandleFunc("POST /logout", withCORS(auth.LogoutHandler))
+	router.HandleFunc("GET /users", withCORS(auth.SessionMiddleware(handlers.GetAllUsersHandler)))
+	router.HandleFunc("/users/deactivate", withCORS(auth.SessionMiddleware(handlers.DeactivateUserHandler)))
 
 	server := &http.Server{
 		Addr:    ":8080",

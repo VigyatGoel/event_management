@@ -1,10 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './admin_panel.css';
 
 function AdminPanel({ user, onLogout }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeUserTab, setActiveUserTab] = useState('all');
+  const [userData, setUserData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deleteStatus, setDeleteStatus] = useState(null);
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('http://localhost:8080/users', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      setUserData(data);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError('Failed to load user data. Please try again later.');
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      fetchUsers();
+    }
+  }, [user]);
 
   const handleLogout = () => {
     fetch("http://localhost:8080/logout", {
@@ -22,18 +55,68 @@ function AdminPanel({ user, onLogout }) {
       });
   };
 
-  // Mock data for demonstration
   const stats = {
     totalEvents: 24,
-    totalUsers: 156,
+    totalUsers: userData.length,
     totalRegistrations: 342,
   };
 
-  const recentUsers = [
-    { id: 1, name: "John Doe", email: "john@example.com", role: "attendee", joinDate: "2025-04-10" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", role: "organiser", joinDate: "2025-04-09" },
-    { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "attendee", joinDate: "2025-04-08" },
-  ];
+  const filteredUsers = activeUserTab === 'all' 
+    ? userData 
+    : userData.filter(user => user.role === activeUserTab);
+
+  const handleDelete = async (email, role) => {
+    if (email === user.email && role === user.role) {
+      setDeleteStatus({
+        success: false,
+        message: "You cannot delete your own account."
+      });
+      
+      setTimeout(() => setDeleteStatus(null), 3000);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete user ${email}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8080/users/deactivate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: email,
+          role: role
+        }),
+      });
+
+      if (response.ok) {
+        setDeleteStatus({
+          success: true,
+          message: `User ${email} has been deleted successfully.`
+        });
+        
+        fetchUsers();
+      } else {
+        const errorData = await response.json();
+        setDeleteStatus({
+          success: false,
+          message: errorData.message || 'Failed to delete user.'
+        });
+      }
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setDeleteStatus({
+        success: false,
+        message: 'Failed to delete user due to a network error.'
+      });
+    }
+
+    setTimeout(() => setDeleteStatus(null), 3000);
+  };
 
   if (!user || user.role !== 'admin') {
     navigate('/login');
@@ -48,14 +131,16 @@ function AdminPanel({ user, onLogout }) {
           <span className="admin-badge">Admin Panel</span>
         </div>
         <div className="admin-controls">
-          <span>Welcome, {user.name}</span>
+          <div className="user-welcome">
+            <div className="user-avatar">{user.name.charAt(0).toUpperCase()}</div>
+            <span className="user-name">{user.name}</span>
+          </div>
           <button className="logout-button" onClick={handleLogout}>
             Logout
           </button>
         </div>
       </div>
 
-      {/* Single admin panel content with one sidebar */}
       <div className="admin-panel-content">
         <div className="admin-sidebar">
           <ul className="sidebar-menu">
@@ -108,6 +193,12 @@ function AdminPanel({ user, onLogout }) {
         </div>
 
         <div className="admin-main">
+          {deleteStatus && (
+            <div className={`status-message ${deleteStatus.success ? 'success-message' : 'error-message'}`}>
+              {deleteStatus.message}
+            </div>
+          )}
+          
           {activeTab === 'dashboard' && (
             <>
               <h2>Dashboard</h2>
@@ -127,46 +218,140 @@ function AdminPanel({ user, onLogout }) {
                 </div>
               </div>
 
-              <h3>Recent Users</h3>
+              <h3>User Management</h3>
               <div className="search-bar">
                 <input type="text" placeholder="Search users..." />
                 <span className="search-icon">🔍</span>
               </div>
               
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Join Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentUsers.map(user => (
-                    <tr key={user.id}>
-                      <td>{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>{user.role}</td>
-                      <td>{user.joinDate}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button className="btn btn-secondary">Edit</button>
-                          <button className="btn btn-danger">Delete</button>
-                        </div>
-                      </td>
+              {isLoading ? (
+                <div className="loading-message">Loading user data...</div>
+              ) : error ? (
+                <div className="error-message">{error}</div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {userData.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="no-data">No users found</td>
+                      </tr>
+                    ) : (
+                      userData.map((userData, index) => (
+                        <tr key={index}>
+                          <td>{userData.name}</td>
+                          <td>{userData.email}</td>
+                          <td>{userData.role}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button className="btn btn-secondary">Edit</button>
+                              <button 
+                                className="btn btn-danger"
+                                onClick={() => handleDelete(userData.email, userData.role)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </>
           )}
 
           {activeTab === 'users' && (
             <div>
               <h2>User Management</h2>
-              <p>User management interface will be implemented here.</p>
+              {isLoading ? (
+                <div className="loading-message">Loading user data...</div>
+              ) : error ? (
+                <div className="error-message">{error}</div>
+              ) : (
+                <>
+                  <div className="user-tabs">
+                    <button 
+                      className={`tab-button ${activeUserTab === 'all' ? 'active' : ''}`}
+                      onClick={() => setActiveUserTab('all')}
+                    >
+                      All Users
+                    </button>
+                    <button 
+                      className={`tab-button ${activeUserTab === 'admin' ? 'active' : ''}`}
+                      onClick={() => setActiveUserTab('admin')}
+                    >
+                      Admins
+                    </button>
+                    <button 
+                      className={`tab-button ${activeUserTab === 'organiser' ? 'active' : ''}`}
+                      onClick={() => setActiveUserTab('organiser')}
+                    >
+                      Organisers
+                    </button>
+                    <button 
+                      className={`tab-button ${activeUserTab === 'attendee' ? 'active' : ''}`}
+                      onClick={() => setActiveUserTab('attendee')}
+                    >
+                      Attendees
+                    </button>
+                  </div>
+                  
+                  <div className="search-bar">
+                    <input type="text" placeholder="Search users..." />
+                    <span className="search-icon">🔍</span>
+                  </div>
+                  
+                  <div className="user-count">
+                    Showing {filteredUsers.length} {activeUserTab === 'all' ? 'users' : activeUserTab + 's'}
+                  </div>
+                  
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="no-data">No users found</td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map((userData, index) => (
+                          <tr key={index}>
+                            <td>{userData.name}</td>
+                            <td>{userData.email}</td>
+                            <td>{userData.role}</td>
+                            <td>
+                              <div className="action-buttons">
+                                <button className="btn btn-secondary">Edit</button>
+                                <button 
+                                  className="btn btn-danger"
+                                  onClick={() => handleDelete(userData.email, userData.role)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </div>
           )}
 
