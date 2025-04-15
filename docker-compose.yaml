@@ -32,6 +32,7 @@ services:
       DB_USER: root
       DB_PASSWORD: 1234
       DB_NAME: event_management
+      FRONTEND_URL: http://event-frontend:3000 # Allow CORS for frontend
 
   frontend:
     build:
@@ -40,7 +41,10 @@ services:
     container_name: event-frontend
     ports:
       - "3000:3000" # Correct port mapping for frontend
-
+    environment:
+      REACT_APP_BACKEND_URL: http://event-backend:8080 # Set backend URL for frontend
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:

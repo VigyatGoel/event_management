@@ -11,8 +11,7 @@ import (
 var DB *sql.DB
 
 func InitDB() {
-	dsnWithoutDb := "root:1234@tcp(mysql:3306)"
-
+	dsnWithoutDb := "root:1234@tcp(mysql:3306)/"
 
 	db, err := sql.Open("mysql", dsnWithoutDb)
 	if err != nil {
@@ -27,7 +26,6 @@ func InitDB() {
 	log.Println("Database 'event_management' created")
 
 	dsnWithDB := "root:1234@tcp(mysql:3306)/event_management"
-
 
 	DB, err = sql.Open("mysql", dsnWithDB)
 	if err != nil {
