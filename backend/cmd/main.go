@@ -44,5 +44,8 @@ func main() {
 	}
 
 	log.Println("Server running on http://localhost:8080")
+
+	// Build the application using: go build -o app
+	// Run the application using: ./app
 	log.Fatal(server.ListenAndServe())
 }
