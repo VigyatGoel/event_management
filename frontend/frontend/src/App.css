@@ -144,3 +144,13 @@ html {
   text-decoration: underline;
   color: #535bf2;
 }
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  width: 100%;
+  font-size: 1.2rem;
+  color: #646cff;
+}
