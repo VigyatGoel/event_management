@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import Login from './pages/login';
-import Signup from './pages/signup';
-import Home from './pages/home';
-import AdminPanel from './pages/admin_panel';
 import './App.css';
-import './pages/home.css';
+
+// Import only the components needed for initial load
+import Login from './pages/login';
+
+// Lazy load other components
+const Signup = lazy(() => import('./pages/signup'));
+const Home = lazy(() => import('./pages/home'));
+const AdminPanel = lazy(() => import('./pages/admin_panel'));
+
+// Loading component to show while lazy components load
+const LoadingFallback = () => <div className="loading-container">Loading...</div>;
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   
+  // Check if we're on the admin panel page
   const isAdminPanel = location.pathname === '/admin';
 
   useEffect(() => {
@@ -54,11 +61,16 @@ function App() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="loading-container">Loading...</div>;
   }
 
+  // Return admin panel directly without wrapping it in app container when on admin route
   if (isAdminPanel && user && user.role === 'admin') {
-    return <AdminPanel user={user} onLogout={handleLogout} />;
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <AdminPanel user={user} onLogout={handleLogout} />
+      </Suspense>
+    );
   }
 
   return (
@@ -82,7 +94,9 @@ function App() {
             <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />
           ) : (
             <div className="form-container">
-              <Signup onSignupSuccess={handleSignupSuccess} />
+              <Suspense fallback={<LoadingFallback />}>
+                <Signup onSignupSuccess={handleSignupSuccess} />
+              </Suspense>
             </div>
           )} 
         />
@@ -90,7 +104,9 @@ function App() {
           path="/admin" 
           element={
             user && user.role === 'admin' ? (
-              <AdminPanel user={user} onLogout={handleLogout} />
+              <Suspense fallback={<LoadingFallback />}>
+                <AdminPanel user={user} onLogout={handleLogout} />
+              </Suspense>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -102,7 +118,9 @@ function App() {
             user.role === 'admin' ? (
               <Navigate to="/admin" replace />
             ) : (
-              <Home user={user} onLogout={handleLogout} />
+              <Suspense fallback={<LoadingFallback />}>
+                <Home user={user} onLogout={handleLogout} />
+              </Suspense>
             )
           ) : (
             <Navigate to="/login" replace />
