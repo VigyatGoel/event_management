@@ -1,14 +1,14 @@
 .admin-panel {
     width: 100%;
-    height: 100vh; /* Full viewport height */
-    margin: 0; /* Remove margin */
+    height: 100vh;
+    margin: 0;
     padding: 2rem;
     background-color: #1a1a1a;
     background-image: linear-gradient(145deg, #1e1e1e, #141414);
     color: #f0f0f0;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    overflow-x: hidden; /* Prevent horizontal scrolling */
-    position: fixed; /* Fix the panel to the viewport */
+    overflow-x: hidden;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -44,7 +44,7 @@
   .admin-title h1 {
     margin: 0;
     font-size: 1.8rem;
-    color: #ff6347; /* Tomato color for admin */
+    color: #ff6347;
     line-height: 1.3;
     letter-spacing: 0.02em;
     font-weight: 600;
@@ -108,8 +108,8 @@
     display: grid;
     grid-template-columns: 250px 1fr;
     gap: 2rem;
-    height: calc(100vh - 100px); /* Adjust for header */
-    overflow: hidden; /* Prevent overflow */
+    height: calc(100vh - 100px);
+    overflow: hidden;
   }
   
   .admin-sidebar {
@@ -118,7 +118,7 @@
     border-radius: 12px;
     padding: 1.5rem;
     height: 100%;
-    overflow-y: auto; /* Allow scrolling if sidebar content is too long */
+    overflow-y: auto;
   }
   
   .sidebar-menu {
@@ -161,7 +161,7 @@
     background-image: linear-gradient(to bottom, #2a2a2a, #232323);
     border-radius: 12px;
     padding: 1.5rem;
-    overflow-y: auto; /* Allow scrolling for main content */
+    overflow-y: auto;
     height: 100%;
   }
   
@@ -222,20 +222,20 @@
   }
   
   .data-table td:last-child {
-    text-align: right; /* Right align the last column which contains buttons */
+    text-align: right;
   }
   
   .data-table td.no-data {
-    text-align: center; /* Center "No users found" text */
-    padding: 2rem 0; /* Add vertical padding for better spacing */
-    color: #888; /* Lighter color for empty state text */
-    font-style: italic; /* Optional: makes the message appear distinct */
+    text-align: center;
+    padding: 2rem 0;
+    color: #888;
+    font-style: italic;
   }
   
   .action-buttons {
     display: flex;
     gap: 0.5rem;
-    justify-content: flex-end; /* Align action buttons to the right */
+    justify-content: flex-end;
   }
   
   .btn {

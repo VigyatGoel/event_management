@@ -2,15 +2,12 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 
-// Import only the components needed for initial load
 import Login from './pages/login';
 
-// Lazy load other components
 const Signup = lazy(() => import('./pages/signup'));
 const Home = lazy(() => import('./pages/home'));
 const AdminPanel = lazy(() => import('./pages/admin_panel'));
 
-// Loading component to show while lazy components load
 const LoadingFallback = () => <div className="loading-container">Loading...</div>;
 
 function App() {
@@ -18,28 +15,44 @@ function App() {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   
-  // Check if we're on the admin panel page
   const isAdminPanel = location.pathname === '/admin';
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch('http://localhost:8080/session', {
+        // Check if we have a token in localStorage
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+        
+        const res = await fetch('http://localhost:8080/validate_token', {
           method: 'GET',
-          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
         });
 
         if (res.ok) {
           const data = await res.json();
           
+          // Ensure we include the token in the user object
           setUser({
             email: data.email,
             name: data.name,
-            role: data.role
+            role: data.role,
+            token: token
           });
+        } else {
+          console.error('Token validation failed with status:', res.status);
+          localStorage.removeItem('token');
         }
       } catch (err) {
-        console.error('Session check failed:', err);
+        console.error('Token validation failed:', err);
+        localStorage.removeItem('token');
       } finally {
         setLoading(false);
       }
@@ -49,10 +62,15 @@ function App() {
   }, []);
 
   const handleLogin = (userData) => {
+    // Ensure we're saving the token to localStorage here too
+    if (userData.token) {
+      localStorage.setItem('token', userData.token);
+    }
     setUser(userData);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     setUser(null);
   };
 
@@ -64,7 +82,6 @@ function App() {
     return <div className="loading-container">Loading...</div>;
   }
 
-  // Return admin panel directly without wrapping it in app container when on admin route
   if (isAdminPanel && user && user.role === 'admin') {
     return (
       <Suspense fallback={<LoadingFallback />}>

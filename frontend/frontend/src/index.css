@@ -13,8 +13,18 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Add global reset and body styling */
 * {
   box-sizing: border-box;
+}
+
+body {
+  background-color: #121212;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  min-height: 100vh;
 }
 
 body {

@@ -24,7 +24,6 @@ function Login({ onLoginSuccess }) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        credentials: "include",
         body: new URLSearchParams(form),
       });
 
@@ -34,15 +33,18 @@ function Login({ onLoginSuccess }) {
         setMsg(data.message);
         setIsSuccess(true);
 
+        // Store the token in localStorage immediately
+        localStorage.setItem('token', data.token);
+
         const userData = {
           email: data.email,
           name: data.name,
           role: data.role,
+          token: data.token,
         };
 
         setTimeout(() => {
           onLoginSuccess(userData);
-          // Redirect based on role
           if (data.role === 'admin') {
             navigate('/admin');
           } else {

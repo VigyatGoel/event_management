@@ -1,25 +1,26 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import './home.css'; // Make sure this import path is correct
 
 function Home({ user, onLogout }) {
   const navigate = useNavigate();
 
+  // Add an effect to check if token exists
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
   const handleLogout = () => {
-    fetch("http://localhost:8080/logout", {
-      method: "POST",
-      credentials: "include",
-    })
-      .then(() => {
-        onLogout();
-        navigate("/login");
-      })
-      .catch((err) => {
-        console.error("Logout failed:", err);
-        onLogout();
-        navigate("/login");
-      });
+    // Clean up by removing token
+    localStorage.removeItem('token');
+    onLogout();
+    navigate("/login");
   };
 
-  if (!user) return <div>Redirecting...</div>;
+  if (!user || !localStorage.getItem('token')) return <div>Redirecting...</div>;
 
   return (
     <div className="homepage">

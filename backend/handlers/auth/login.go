@@ -1,12 +1,11 @@
 package auth
 
 import (
-	"context"
 	"encoding/json"
 	"event_management/backend/database"
-	"event_management/backend/models"
 	"event_management/backend/utils"
 	"net/http"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,17 +18,33 @@ func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	})
 }
 
-func SessionMiddleware(h http.HandlerFunc) http.HandlerFunc {
+func JWTMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := utils.Store.Get(r, "session")
-		userID, ok := session.Values["user_id"].(int)
-		if !ok {
-			writeJSONError(w, "Unauthorized. Please log in.", http.StatusUnauthorized)
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			writeJSONError(w, "Authorization header required", http.StatusUnauthorized)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "userID", userID)
-		r = r.WithContext(ctx)
+		tokenParts := strings.Split(authHeader, " ")
+		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+			writeJSONError(w, "Invalid authorization format", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := tokenParts[1]
+
+		claims, err := utils.ValidateJWT(tokenString)
+		if err != nil {
+			writeJSONError(w, "Unauthorized. Invalid or expired token.", http.StatusUnauthorized)
+			return
+		}
+
+		r.Header.Set("X-User-ID", string(rune(claims.UserID)))
+		r.Header.Set("X-User-Email", claims.Email)
+		r.Header.Set("X-User-Name", claims.Name)
+		r.Header.Set("X-User-Role", claims.Role)
+
 		h(w, r)
 	}
 }
@@ -51,6 +66,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var searchQuery string
+	var userId int
+	var name, storedPassword, userEmail, phone string
 
 	switch role {
 	case "admin":
@@ -70,61 +87,63 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var dbUser models.User
-	err = database.DB.QueryRow(searchQuery, email).
-		Scan(&dbUser.ID, &dbUser.Name, &dbUser.Email, &dbUser.Phone, &dbUser.Password)
-
+	err = database.DB.QueryRow(searchQuery, email).Scan(&userId, &name, &userEmail, &phone, &storedPassword)
 	if err != nil {
-		writeJSONError(w, "Invalid login credentials", http.StatusUnauthorized)
+		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
 	if err != nil {
-		writeJSONError(w, "Invalid login credentials", http.StatusUnauthorized)
+		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	session, _ := utils.Store.Get(r, "session")
-	session.Values["user_id"] = dbUser.ID
-	session.Values["email"] = dbUser.Email
-	session.Values["name"] = dbUser.Name
-	session.Values["role"] = role
-	session.Save(r, w)
+	token, err := utils.GenerateJWT(userId, email, name, role)
+	if err != nil {
+		writeJSONError(w, "Failed to generate authentication token", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Login successful!",
-		"name":    dbUser.Name,
-		"email":   dbUser.Email,
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Login successful",
+		"token":   token,
+		"name":    name,
+		"email":   email,
 		"role":    role,
 	})
 }
 
-func SessionHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := utils.Store.Get(r, "session")
+func ValidateTokenHandler(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		writeJSONError(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
 
-	email, ok := session.Values["email"].(string)
-	name, ok2 := session.Values["name"].(string)
-	role, ok3 := session.Values["role"].(string)
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		writeJSONError(w, "Invalid authorization format", http.StatusUnauthorized)
+		return
+	}
 
-	if !ok || !ok2 || !ok3 {
+	tokenString := tokenParts[1]
+
+	claims, err := utils.ValidateJWT(tokenString)
+	if err != nil {
 		writeJSONError(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Session active",
-		"email":   email,
-		"name":    name,
-		"role":    role,
+		"email":   claims.Email,
+		"name":    claims.Name,
+		"role":    claims.Role,
 	})
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := utils.Store.Get(r, "session")
-	session.Options.MaxAge = -1
-	session.Save(r, w)
-
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully"})
 }

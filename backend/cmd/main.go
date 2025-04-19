@@ -9,43 +9,40 @@ import (
 	"net/http"
 )
 
-func withCORS(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		h(w, r)
-	}
-}
-
 func main() {
 	fmt.Println("Starting the server...")
 	database.InitDB()
 
 	router := http.NewServeMux()
 
-	router.HandleFunc("POST /signup", withCORS(auth.SignupHandler))
-	router.HandleFunc("POST /login", withCORS(auth.LoginHandler))
-	router.HandleFunc("GET /session", withCORS(auth.SessionHandler))
-	router.HandleFunc("POST /logout", withCORS(auth.LogoutHandler))
-	router.HandleFunc("GET /users", withCORS(auth.SessionMiddleware(handlers.GetAllUsersHandler)))
-	router.HandleFunc("/users/deactivate", withCORS(auth.SessionMiddleware(handlers.DeactivateUserHandler)))
+	router.HandleFunc("POST /signup", auth.SignupHandler)
+	router.HandleFunc("POST /login", auth.LoginHandler)
+	router.HandleFunc("GET /validate_token", auth.ValidateTokenHandler)
+	router.HandleFunc("POST /logout", auth.LogoutHandler)
+	router.HandleFunc("GET /users", auth.JWTMiddleware(handlers.GetAllUsersHandler))
+	router.HandleFunc("POST /users/deactivate", auth.JWTMiddleware(handlers.DeactivateUserHandler))
+
+	corsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		router.ServeHTTP(w, r)
+	})
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: router,
+		Handler: corsHandler,
 	}
 
 	log.Println("Server running on http://localhost:8080")
 
-	// Build the application using: go build -o app
-	// Run the application using: ./app
 	log.Fatal(server.ListenAndServe())
 }

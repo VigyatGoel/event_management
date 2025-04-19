@@ -14,12 +14,27 @@ function AdminPanel({ user, onLogout }) {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+      
       const response = await fetch('http://localhost:8080/users', {
         method: 'GET',
-        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.log("Error")
+          onLogout();
+          navigate("/login");
+          return;
+        }
         throw new Error('Failed to fetch user data');
       }
 
@@ -34,25 +49,17 @@ function AdminPanel({ user, onLogout }) {
   };
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && user.role === 'admin' && localStorage.getItem('token')) {
       fetchUsers();
+    } else if (!localStorage.getItem('token')) {
+      navigate("/login");
     }
-  }, [user]);
+  }, [user, navigate]);
 
   const handleLogout = () => {
-    fetch("http://localhost:8080/logout", {
-      method: "POST",
-      credentials: "include",
-    })
-      .then(() => {
-        onLogout();
-        navigate("/login");
-      })
-      .catch((err) => {
-        console.error("Logout failed:", err);
-        onLogout();
-        navigate("/login");
-      });
+    localStorage.removeItem('token');
+    onLogout();
+    navigate("/login");
   };
 
   const stats = {
@@ -85,8 +92,8 @@ function AdminPanel({ user, onLogout }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        credentials: 'include',
         body: JSON.stringify({
           email: email,
           role: role
