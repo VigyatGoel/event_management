@@ -33,7 +33,6 @@ function Login({ onLoginSuccess }) {
         setMsg(data.message);
         setIsSuccess(true);
 
-        // Store the token in localStorage immediately
         localStorage.setItem('token', data.token);
 
         const userData = {

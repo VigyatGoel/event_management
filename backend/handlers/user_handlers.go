@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"event_management/backend/database"
+	"event_management/backend/utils"
 )
 
 func GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,5 +61,98 @@ func DeactivateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"email":   requestData.Email,
 		"role":    requestData.Role,
 	})
+}
 
+func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := database.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "Error retrieving user profile", http.StatusInternalServerError)
+		log.Printf("Error retrieving user profile: %v", err)
+		return
+	}
+
+	user.Password = ""
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var profileUpdate struct {
+		Name  string `json:"name"`
+		Phone string `json:"phone"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&profileUpdate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	user, err := database.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "Error retrieving user profile", http.StatusInternalServerError)
+		log.Printf("Error retrieving user profile: %v", err)
+		return
+	}
+
+	if profileUpdate.Name != "" {
+		user.Name = profileUpdate.Name
+	}
+
+
+	user.Phone = profileUpdate.Phone
+
+	updatedUser, err := database.UpdateUser(user)
+	if err != nil {
+		http.Error(w, "Error updating user profile", http.StatusInternalServerError)
+		log.Printf("Error updating user profile: %v", err)
+		return
+	}
+
+	updatedUser.Password = ""
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(updatedUser); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func GetUserRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	registrations, err := database.GetRegistrationsByUserID(userID)
+	if err != nil {
+		http.Error(w, "Error retrieving registrations", http.StatusInternalServerError)
+		log.Printf("Error retrieving registrations: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(registrations); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }

@@ -7,15 +7,15 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
-FROM alpine:latest
+FROM scratch
 
 WORKDIR /app
 
 COPY --from=builder /src/main .
 
-RUN chmod +x ./main
+# RUN chmod +x ./main
 
 ENV FRONTEND_URL=http://event-frontend:3000
 

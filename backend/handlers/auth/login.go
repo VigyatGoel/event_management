@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"event_management/backend/database"
 	"event_management/backend/utils"
@@ -18,8 +19,8 @@ func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	})
 }
 
-func JWTMiddleware(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func JWTMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			writeJSONError(w, "Authorization header required", http.StatusUnauthorized)
@@ -40,13 +41,13 @@ func JWTMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		r.Header.Set("X-User-ID", string(rune(claims.UserID)))
-		r.Header.Set("X-User-Email", claims.Email)
-		r.Header.Set("X-User-Name", claims.Name)
-		r.Header.Set("X-User-Role", claims.Role)
+		ctx := context.WithValue(r.Context(), utils.UserIDKey, claims.UserID)
+		ctx = context.WithValue(ctx, utils.UserEmailKey, claims.Email)
+		ctx = context.WithValue(ctx, utils.UserNameKey, claims.Name)
+		ctx = context.WithValue(ctx, utils.UserRoleKey, claims.Role)
 
-		h(w, r)
-	}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {

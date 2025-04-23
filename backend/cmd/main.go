@@ -7,39 +7,63 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
 	fmt.Println("Starting the server...")
 	database.InitDB()
 
-	router := http.NewServeMux()
+	router := mux.NewRouter()
 
-	router.HandleFunc("POST /signup", auth.SignupHandler)
-	router.HandleFunc("POST /login", auth.LoginHandler)
-	router.HandleFunc("GET /validate_token", auth.ValidateTokenHandler)
-	router.HandleFunc("POST /logout", auth.LogoutHandler)
-	router.HandleFunc("GET /users", auth.JWTMiddleware(handlers.GetAllUsersHandler))
-	router.HandleFunc("POST /users/deactivate", auth.JWTMiddleware(handlers.DeactivateUserHandler))
+	router.HandleFunc("/signup", auth.SignupHandler).Methods("POST", "OPTIONS")
+	router.HandleFunc("/login", auth.LoginHandler).Methods("POST", "OPTIONS")
+	router.HandleFunc("/validate_token", auth.ValidateTokenHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/logout", auth.LogoutHandler).Methods("POST", "OPTIONS")
 
-	corsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Max-Age", "86400")
+	adminRouter := router.PathPrefix("/admin").Subrouter()
+	adminRouter.Use(auth.JWTMiddleware)
+	adminRouter.HandleFunc("/users", handlers.GetAllUsersHandler).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/users/deactivate", handlers.DeactivateUserHandler).Methods("POST", "OPTIONS")
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
+	organizerRouter := router.PathPrefix("/organizer").Subrouter()
+	organizerRouter.Use(auth.JWTMiddleware)
+	organizerRouter.HandleFunc("/all_events", handlers.GetOrganizerEventsHandler).Methods("GET", "OPTIONS")
+	organizerRouter.HandleFunc("/events/{id:[0-9]+}/registrations", handlers.GetEventRegistrationsHandler).Methods("GET", "OPTIONS")
+	organizerRouter.HandleFunc("/create_events", handlers.CreateEventHandler).Methods("POST", "OPTIONS")
+	organizerRouter.HandleFunc("/update_events/{id:[0-9]+}", handlers.UpdateEventHandler).Methods("PUT", "OPTIONS")
+	organizerRouter.HandleFunc("/delete_events/{id:[0-9]+}", handlers.CancelEventHandler).Methods("DELETE", "OPTIONS")
 
-		router.ServeHTTP(w, r)
-	})
+	userRouter := router.PathPrefix("").Subrouter()
+	userRouter.Use(auth.JWTMiddleware)
+	userRouter.HandleFunc("/events", handlers.GetEventsHandler).Methods("GET", "OPTIONS")
+	userRouter.HandleFunc("/events/{id:[0-9]+}/register", handlers.RegisterForEventHandler).Methods("POST", "OPTIONS")
+	userRouter.HandleFunc("/registrations/{id:[0-9]+}", handlers.CancelRegistrationHandler).Methods("DELETE", "OPTIONS")
+	userRouter.HandleFunc("/user/profile", handlers.GetUserProfileHandler).Methods("GET", "OPTIONS")
+	userRouter.HandleFunc("/user/profile", handlers.UpdateUserProfileHandler).Methods("PUT", "OPTIONS")
+	userRouter.HandleFunc("/user/registrations", handlers.GetUserRegistrationsHandler).Methods("GET", "OPTIONS")
+
+	corsHandler := func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			h.ServeHTTP(w, r)
+		})
+	}
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: corsHandler,
+		Handler: corsHandler(router),
 	}
 
 	log.Println("Server running on http://localhost:8080")

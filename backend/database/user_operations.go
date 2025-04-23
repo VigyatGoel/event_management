@@ -1,6 +1,7 @@
 package database
 
 import (
+	"event_management/backend/models"
 	"fmt"
 )
 
@@ -161,4 +162,74 @@ func DeactivateUser(email string, role string) error {
 	}
 
 	return nil
+}
+
+func GetUserByID(userID int) (models.User, error) {
+	var user models.User
+
+
+	err := DB.QueryRow(`
+		SELECT attendee_id, name, email, phone, password
+		FROM attendee
+		WHERE attendee_id = ? AND isalive = 1
+	`, userID).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Password)
+
+	if err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+func UpdateUser(user models.User) (models.User, error) {
+
+	_, err := DB.Exec(`
+		UPDATE attendee
+		SET name = ?, phone = ?
+		WHERE attendee_id = ? AND isalive = 1
+	`, user.Name, user.Phone, user.ID)
+
+	if err != nil {
+		return user, err
+	}
+
+	updatedUser, err := GetUserByID(user.ID)
+	if err != nil {
+		return user, err
+	}
+
+	return updatedUser, nil
+}
+
+func GetRegistrationsByUserID(userID int) ([]models.Registration, error) {
+	registrations := []models.Registration{}
+
+	rows, err := DB.Query(`
+		SELECT registration_id, event_id, attendee_id, registration_date, status
+		FROM registration
+		WHERE attendee_id = ? AND isalive = 1
+		ORDER BY registration_date DESC
+	`, userID)
+
+	if err != nil {
+		return registrations, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var reg models.Registration
+		err := rows.Scan(
+			&reg.ID,
+			&reg.EventID,
+			&reg.UserID,
+			&reg.RegistrationDate,
+			&reg.Status,
+		)
+		if err != nil {
+			return registrations, err
+		}
+		registrations = append(registrations, reg)
+	}
+
+	return registrations, nil
 }

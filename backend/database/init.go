@@ -37,12 +37,10 @@ func InitDB() {
 	DB.SetMaxIdleConns(25)
 	DB.SetConnMaxLifetime(5 * time.Minute)
 
-	// Test the connection
 	if err := DB.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// ADMIN table
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS admin (
 			admin_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,7 +58,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'admin' table: %v", err)
 	}
 
-	// ORGANISER table
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS organiser (
 			organiser_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,7 +75,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'organiser' table: %v", err)
 	}
 
-	// ATTENDEE table
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS attendee (
 			attendee_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,7 +115,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'event' table: %v", err)
 	}
 
-	// REGISTRATION table
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS registration (
 			registration_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -141,7 +136,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'registration' table: %v", err)
 	}
 
-	// Create a table for event categories
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS event_category (
 			category_id INT AUTO_INCREMENT PRIMARY KEY,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './admin_panel.css';
 
@@ -11,7 +11,7 @@ function AdminPanel({ user, onLogout }) {
   const [error, setError] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
@@ -20,7 +20,7 @@ function AdminPanel({ user, onLogout }) {
         return;
       }
       
-      const response = await fetch('http://localhost:8080/users', {
+      const response = await fetch('http://localhost:8080/admin/users', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -46,7 +46,7 @@ function AdminPanel({ user, onLogout }) {
       setError('Failed to load user data. Please try again later.');
       setIsLoading(false);
     }
-  };
+  }, [navigate, onLogout]);
 
   useEffect(() => {
     if (user && user.role === 'admin' && localStorage.getItem('token')) {
@@ -54,25 +54,27 @@ function AdminPanel({ user, onLogout }) {
     } else if (!localStorage.getItem('token')) {
       navigate("/login");
     }
-  }, [user, navigate]);
+  }, [user, navigate, fetchUsers]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     onLogout();
     navigate("/login");
-  };
+  }, [navigate, onLogout]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     totalEvents: 24,
     totalUsers: userData.length,
     totalRegistrations: 342,
-  };
+  }), [userData.length]);
 
-  const filteredUsers = activeUserTab === 'all' 
-    ? userData 
-    : userData.filter(user => user.role === activeUserTab);
+  const filteredUsers = useMemo(() => {
+    return activeUserTab === 'all'
+      ? userData
+      : userData.filter(user => user.role === activeUserTab);
+  }, [activeUserTab, userData]);
 
-  const handleDelete = async (email, role) => {
+  const handleDelete = useCallback(async (email, role) => {
     if (email === user.email && role === user.role) {
       setDeleteStatus({
         success: false,
@@ -88,7 +90,7 @@ function AdminPanel({ user, onLogout }) {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/users/deactivate', {
+      const response = await fetch('http://localhost:8080/admin/users/deactivate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +125,7 @@ function AdminPanel({ user, onLogout }) {
     }
 
     setTimeout(() => setDeleteStatus(null), 3000);
-  };
+  }, [user, fetchUsers]);
 
   if (!user || user.role !== 'admin') {
     navigate('/login');
@@ -336,17 +338,17 @@ function AdminPanel({ user, onLogout }) {
                           <td colSpan="4" className="no-data">No users found</td>
                         </tr>
                       ) : (
-                        filteredUsers.map((userData, index) => (
+                        filteredUsers.map((uData, index) => (
                           <tr key={index}>
-                            <td>{userData.name}</td>
-                            <td>{userData.email}</td>
-                            <td>{userData.role}</td>
+                            <td>{uData.name}</td>
+                            <td>{uData.email}</td>
+                            <td>{uData.role}</td>
                             <td>
                               <div className="action-buttons">
                                 <button className="btn btn-secondary">Edit</button>
                                 <button 
                                   className="btn btn-danger"
-                                  onClick={() => handleDelete(userData.email, userData.role)}
+                                  onClick={() => handleDelete(uData.email, uData.role)}
                                 >
                                   Delete
                                 </button>
