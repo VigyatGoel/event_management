@@ -47,6 +47,7 @@ function Home({ user, onLogout }) {
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
+      console.log("Fetched registrations from backend:", data); // <-- Add this log
       setMyRegistrations(data || []);
     } catch (err) {
       console.error("Failed to fetch registrations:", err);
@@ -230,8 +231,8 @@ function Home({ user, onLogout }) {
     );
   };
 
-  const registeredEventIds = new Set(myRegistrations.map(reg => reg.eventID));
-  const registrationMap = new Map(myRegistrations.map(reg => [reg.eventID, reg.id]));
+  const registeredEventIds = new Set(myRegistrations.map(reg => reg.eventId)); // <-- changed from reg.eventID
+  const registrationMap = new Map(myRegistrations.map(reg => [reg.eventId, reg.id])); // <-- changed from reg.eventID
 
   const myEvents = availableEvents.filter(event => registeredEventIds.has(event.id));
   const otherEvents = availableEvents.filter(event => !registeredEventIds.has(event.id));

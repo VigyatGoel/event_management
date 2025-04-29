@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"event_management/backend/database"
 	"event_management/backend/models"
-	"fmt"
+
 	"net/http"
 	"strings"
 	"time"
-
 	"golang.org/x/crypto/bcrypt"
 )
 
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
 		writeJSONError(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
@@ -25,13 +24,18 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	phone := r.FormValue("phone")
 	role := strings.ToLower(r.FormValue("role"))
 
-	fmt.Println(role)
-
+	// Validate inputs
 	if name == "" || email == "" || password == "" || phone == "" || role == "" {
 		writeJSONError(w, "All fields are required", http.StatusBadRequest)
 		return
 	}
 
+	if role != "admin" && role != "organiser" && role != "attendee" {
+		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
+		return
+	}
+
+	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		writeJSONError(w, "Error hashing password", http.StatusInternalServerError)
@@ -41,35 +45,22 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	createdAt := time.Now()
 	isAlive := true
 
-	var insertQuery string
+	// Single INSERT into unified `user` table
+	insertQuery := `
+		INSERT INTO user (name, email, phone, password, role, isalive, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
 
-	switch role {
-	case "admin":
-		insertQuery = `
-			INSERT INTO admin (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	case "organiser":
-		insertQuery = `
-			INSERT INTO organiser (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	case "attendee":
-		insertQuery = `
-			INSERT INTO attendee (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	default:
-		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
-		return
-	}
-
-	_, err = database.DB.Exec(insertQuery, name, email, phone, hashedPassword, isAlive, createdAt)
+	_, err = database.DB.Exec(insertQuery,
+		name, email, phone, hashedPassword, role, isAlive, createdAt,
+	)
 	if err != nil {
+		// Could check for duplicate-email error via MySQL error code 1062 if desired
 		writeJSONError(w, "Email already registered or DB error", http.StatusBadRequest)
 		return
 	}
 
+	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
@@ -79,3 +70,6 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		Role:    role,
 	})
 }
+
+// writeJSONError is assumed to be defined elsewhere in this package:
+// func writeJSONError(w http.ResponseWriter, message string, code int) { … }

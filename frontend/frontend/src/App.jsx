@@ -17,9 +17,9 @@ function App() {
   const location = useLocation();
   
   const isAdminPanel = useMemo(() => location.pathname === '/admin', [location.pathname]);
-  const isOrganizerPanel = useMemo(() => location.pathname === '/organizer', [location.pathname]);
+  const isOrganizerPanel = useMemo(() => location.pathname === '/organiser', [location.pathname]);
 
-  const API_BASE_URL = useMemo(() => 'http://localhost:8080', []);
+  const API_BASE_URL = useMemo(() => process.env.REACT_APP_BACKEND_URL || 'http://localhost:8080', []);
 
   const handleLogin = useCallback((userData) => {
     if (userData.token) {
@@ -105,7 +105,7 @@ function App() {
           <Route 
             path="/login" 
             element={user ? (
-              <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'organiser' ? '/organizer' : '/'} replace />
+              <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'organiser' ? '/organiser' : '/'} replace />
             ) : (
               <div className="form-container">
                 <Login onLoginSuccess={handleLogin} />
@@ -115,7 +115,7 @@ function App() {
           <Route 
             path="/signup" 
             element={user ? (
-              <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'organiser' ? '/organizer' : '/'} replace />
+              <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'organiser' ? '/organiser' : '/'} replace />
             ) : (
               <div className="form-container">
                 <Suspense fallback={<LoadingFallback />}>
@@ -137,7 +137,7 @@ function App() {
             } 
           />
           <Route 
-            path="/organizer" 
+            path="/organiser" 
             element={
               user?.role === 'organiser' ? (
                 <Suspense fallback={<LoadingFallback />}>
@@ -154,7 +154,7 @@ function App() {
               user.role === 'admin' ? (
                 <Navigate to="/admin" replace />
               ) : user.role === 'organiser' ? (
-                <Navigate to="/organizer" replace />
+                <Navigate to="/organiser" replace />
               ) : (
                 <Suspense fallback={<LoadingFallback />}>
                   <Home user={user} onLogout={handleLogout} />

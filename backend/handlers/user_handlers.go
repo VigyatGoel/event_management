@@ -10,23 +10,42 @@ import (
 	"event_management/backend/utils"
 )
 
+func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{"message": message})
+}
+
+// Only admins can fetch all users
 func GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	userRole, ok := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "admin" {
+		http.Error(w, "Only admins can view all users", http.StatusForbidden)
+		return
+	}
+
 	users, err := database.GetAllUserRoles()
 	if err != nil {
 		http.Error(w, "Failed to retrieve user data", http.StatusInternalServerError)
+		log.Printf("Error retrieving users: %v", err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 	if err := json.NewEncoder(w).Encode(users); err != nil {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 		return
 	}
 }
 
+// Only admins can deactivate users
 func DeactivateUserHandler(w http.ResponseWriter, r *http.Request) {
+	userRole, ok := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "admin" {
+		http.Error(w, "Only admins can deactivate users", http.StatusForbidden)
+		return
+	}
 
 	var requestData struct {
 		Email string `json:"email"`
@@ -63,6 +82,7 @@ func DeactivateUserHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Any authenticated user can view their profile
 func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
@@ -77,6 +97,7 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// hide password
 	user.Password = ""
 
 	w.Header().Set("Content-Type", "application/json")
@@ -87,6 +108,7 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Any authenticated user can update their profile
 func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
@@ -114,8 +136,6 @@ func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if profileUpdate.Name != "" {
 		user.Name = profileUpdate.Name
 	}
-
-
 	user.Phone = profileUpdate.Phone
 
 	updatedUser, err := database.UpdateUser(user)
@@ -135,12 +155,15 @@ func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Any authenticated user can view their own registrations
 func GetUserRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("GetUserRegistrationsHandler called")
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	log.Printf("Fetching registrations for userID: %d", userID)
 
 	registrations, err := database.GetRegistrationsByUserID(userID)
 	if err != nil {
@@ -148,6 +171,7 @@ func GetUserRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error retrieving registrations: %v", err)
 		return
 	}
+	log.Printf("Found %d registrations for userID: %d", len(registrations), userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
