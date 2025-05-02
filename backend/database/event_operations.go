@@ -7,8 +7,6 @@ import (
 	"log"
 )
 
-// GetEventsByOrganizerID returns all events created by a given organiser (user with role='organiser'),
-// along with a count of active registrations.
 func GetEventsByOrganizerID(organizerID int) ([]models.EventWithRegistrationCount, error) {
 	events := []models.EventWithRegistrationCount{}
 
@@ -52,8 +50,6 @@ func GetEventsByOrganizerID(organizerID int) ([]models.EventWithRegistrationCoun
 	return events, rows.Err()
 }
 
-// GetRegistrationsByEventID returns all registrations for a given event, 
-// along with the attendee’s user name and email pulled from the unified user table.
 func GetRegistrationsByEventID(eventID int) ([]models.RegistrationWithUserDetails, error) {
 	registrations := []models.RegistrationWithUserDetails{}
 
@@ -98,7 +94,6 @@ func GetRegistrationsByEventID(eventID int) ([]models.RegistrationWithUserDetail
 	return registrations, rows.Err()
 }
 
-// IsEventOrganizer checks whether the given user (by user_id) is the organiser of that event.
 func IsEventOrganizer(eventID, userID int) (bool, error) {
 	var organiserID int
 	err := DB.QueryRow(`
@@ -115,7 +110,6 @@ func IsEventOrganizer(eventID, userID int) (bool, error) {
 	return organiserID == userID, nil
 }
 
-// CreateEvent inserts a new event (organized by an existing user with role='organiser').
 func CreateEvent(event models.Event) (models.Event, error) {
 	if event.Status == "" {
 		event.Status = "active"
@@ -140,7 +134,6 @@ func CreateEvent(event models.Event) (models.Event, error) {
 	return event, nil
 }
 
-// UpdateEvent modifies an existing event, ensuring only the owner (organiser) can update it.
 func UpdateEvent(event models.Event) (*models.Event, error) {
 	if event.OrganizerID == 0 {
 		return nil, errors.New("organizer ID is required for update authorization")
@@ -168,7 +161,6 @@ func UpdateEvent(event models.Event) (*models.Event, error) {
 	return &event, nil
 }
 
-// CancelEvent marks an event as inactive (soft delete).
 func CancelEvent(eventID int) error {
 	_, err := DB.Exec(`
 		UPDATE event 
@@ -178,7 +170,6 @@ func CancelEvent(eventID int) error {
 	return err
 }
 
-// GetAllEvents fetches every active event with its registration count.
 func GetAllEvents() ([]models.EventWithRegistrationCount, error) {
 	events := []models.EventWithRegistrationCount{}
 
@@ -221,7 +212,6 @@ func GetAllEvents() ([]models.EventWithRegistrationCount, error) {
 	return events, rows.Err()
 }
 
-// GetEventByID retrieves a single event if it’s still active.
 func GetEventByID(eventID int) (models.Event, error) {
 	var ev models.Event
 	err := DB.QueryRow(`
@@ -250,7 +240,6 @@ func GetEventByID(eventID int) (models.Event, error) {
 	return ev, nil
 }
 
-// IsUserRegisteredForEvent checks if a given user (attendee) is signed up for an event.
 func IsUserRegisteredForEvent(userID, eventID int) (bool, error) {
 	var count int
 	err := DB.QueryRow(`
@@ -263,7 +252,6 @@ func IsUserRegisteredForEvent(userID, eventID int) (bool, error) {
 	return count > 0, err
 }
 
-// CreateRegistration attempts to register a user (attendee) for an event if there’s capacity.
 func CreateRegistration(reg models.Registration) (int, error) {
 	var capacity, registered int
 	err := DB.QueryRow(`
@@ -298,7 +286,6 @@ func CreateRegistration(reg models.Registration) (int, error) {
 	return int(lastID), err
 }
 
-// IsRegistrationOwner ensures a user can only operate on their own registration.
 func IsRegistrationOwner(regID, userID int) (bool, error) {
 	var cnt int
 	err := DB.QueryRow(`
@@ -311,7 +298,6 @@ func IsRegistrationOwner(regID, userID int) (bool, error) {
 	return cnt > 0, err
 }
 
-// CancelRegistration soft-deletes a registration.
 func CancelRegistration(regID int) error {
 	_, err := DB.Exec(`
 		UPDATE registration 

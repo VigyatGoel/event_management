@@ -5,8 +5,7 @@ function Login({ onLoginSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "",
-    password: "",
-    role: "attendee",
+    password: ""
   });
   const [msg, setMsg] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
@@ -46,6 +45,8 @@ function Login({ onLoginSuccess }) {
           onLoginSuccess(userData);
           if (data.role === 'admin') {
             navigate('/admin');
+          } else if (data.role === 'organiser') {
+            navigate('/organizer');
           } else {
             navigate('/');
           }
@@ -84,17 +85,6 @@ function Login({ onLoginSuccess }) {
           value={form.password}
           required
         />
-        <select
-          name="role"
-          className="form-input"
-          value={form.role}
-          onChange={handleChange}
-          required
-        >
-          <option value="attendee">Attendee</option>
-          <option value="organiser">Organiser</option>
-          <option value="admin">Admin</option>
-        </select>
         <button type="submit" className="submit-button">
           Login
         </button>

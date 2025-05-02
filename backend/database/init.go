@@ -32,7 +32,6 @@ func InitDB() {
 		log.Fatalf("Failed to connect to event_management database: %v", err)
 	}
 
-	// Connection pool settings
 	DB.SetMaxOpenConns(100)
 	DB.SetMaxIdleConns(25)
 	DB.SetConnMaxLifetime(5 * time.Minute)
@@ -41,7 +40,27 @@ func InitDB() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Create unified user table
+	_, err = DB.Exec(`
+		CREATE TABLE IF NOT EXISTS role (
+			role_id INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(50) UNIQUE NOT NULL,
+			description VARCHAR(255),
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		);
+	`)
+	if err != nil {
+		log.Fatalf("Error creating 'role' table: %v", err)
+	}
+
+	_, err = DB.Exec(`
+		INSERT IGNORE INTO role (name) 
+		VALUES ('admin'), ('organiser'), ('attendee');
+	`)
+	if err != nil {
+		log.Fatalf("Error inserting default roles: %v", err)
+	}
+
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS user (
 			user_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -49,19 +68,32 @@ func InitDB() {
 			email VARCHAR(100) UNIQUE NOT NULL,
 			phone VARCHAR(20),
 			password VARCHAR(255) NOT NULL,
-			role ENUM('admin', 'organiser', 'attendee') NOT NULL,
 			isalive BOOLEAN DEFAULT TRUE,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_user_email (email),
-			INDEX idx_user_role (role)
+			INDEX idx_user_email (email)
 		);
 	`)
 	if err != nil {
 		log.Fatalf("Error creating 'user' table: %v", err)
 	}
 
-	// Create event_category table
+	_, err = DB.Exec(`
+		CREATE TABLE IF NOT EXISTS user_role (
+			user_id INT NOT NULL,
+			role_id INT NOT NULL,
+			assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (user_id, role_id),
+			FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+			FOREIGN KEY (role_id) REFERENCES role(role_id) ON DELETE CASCADE,
+			INDEX idx_user_role_user (user_id),
+			INDEX idx_user_role_role (role_id)
+		);
+	`)
+	if err != nil {
+		log.Fatalf("Error creating 'user_role' table: %v", err)
+	}
+
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS event_category (
 			category_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -75,7 +107,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'event_category' table: %v", err)
 	}
 
-	// Create event table (organiser_id references user table)
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS event (
 			event_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -99,7 +130,6 @@ func InitDB() {
 		log.Fatalf("Error creating 'event' table: %v", err)
 	}
 
-	// Create registration table (attendee_id references user table)
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS registration (
 			registration_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -121,5 +151,5 @@ func InitDB() {
 		log.Fatalf("Error creating 'registration' table: %v", err)
 	}
 
-	log.Println("All tables created successfully with unified user table.")
+	log.Println("All tables created successfully.")
 }

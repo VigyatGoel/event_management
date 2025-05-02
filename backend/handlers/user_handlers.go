@@ -16,7 +16,6 @@ func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	json.NewEncoder(w).Encode(map[string]string{"message": message})
 }
 
-// Only admins can fetch all users
 func GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 	userRole, ok := r.Context().Value(utils.UserRoleKey).(string)
 	if !ok || userRole != "admin" {
@@ -39,7 +38,6 @@ func GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Only admins can deactivate users
 func DeactivateUserHandler(w http.ResponseWriter, r *http.Request) {
 	userRole, ok := r.Context().Value(utils.UserRoleKey).(string)
 	if !ok || userRole != "admin" {
@@ -82,7 +80,6 @@ func DeactivateUserHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Any authenticated user can view their profile
 func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
@@ -97,7 +94,6 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// hide password
 	user.Password = ""
 
 	w.Header().Set("Content-Type", "application/json")
@@ -108,7 +104,6 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Any authenticated user can update their profile
 func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
@@ -155,7 +150,6 @@ func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Any authenticated user can view their own registrations
 func GetUserRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetUserRegistrationsHandler called")
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)

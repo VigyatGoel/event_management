@@ -49,7 +49,6 @@ func JWTMiddleware(next http.Handler) http.Handler {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	// parse form
 	if err := r.ParseForm(); err != nil {
 		writeJSONError(w, "Invalid form data", http.StatusBadRequest)
 		return
@@ -57,43 +56,24 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-	role    := strings.ToLower(r.FormValue("role"))
 
-	// validate inputs
-	if email == "" || password == "" || role == "" {
-		writeJSONError(w, "Email, password and role are required", http.StatusBadRequest)
-		return
-	}
-	if role != "admin" && role != "organiser" && role != "attendee" {
-		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
+	if email == "" || password == "" {
+		writeJSONError(w, "Email and password are required", http.StatusBadRequest)
 		return
 	}
 
-	// unified lookup in user table
-	var (
-		userId         int
-		name, userEmail, phone, storedHash, dbRole string
-	)
-	query := `
-		SELECT user_id, name, email, phone, password, role
-		FROM user
-		WHERE email = ? AND role = ? AND isalive = 1
-	`
-	err := database.DB.QueryRow(query, email, role).
-		Scan(&userId, &name, &userEmail, &phone, &storedHash, &dbRole)
+	user, err := database.AuthenticateUser(email)
 	if err != nil {
 		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	// verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	// issue JWT using the DB-confirmed role
-	token, err := utils.GenerateJWT(userId, userEmail, name, dbRole)
+	token, err := utils.GenerateJWT(user.ID, user.Email, user.Name, user.Role)
 	if err != nil {
 		writeJSONError(w, "Failed to generate authentication token", http.StatusInternalServerError)
 		return
@@ -103,12 +83,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Login successful",
 		"token":   token,
-		"name":    name,
-		"email":   userEmail,
-		"role":    dbRole,
+		"name":    user.Name,
+		"email":   user.Email,
+		"role":    user.Role,
 	})
 }
-
 
 func ValidateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")

@@ -24,7 +24,6 @@ type eventRequest struct {
 	Capacity    int    `json:"capacity"`
 }
 
-// Public: get all active events
 func GetEventsHandler(w http.ResponseWriter, r *http.Request) {
 	events, err := database.GetAllEvents()
 	if err != nil {
@@ -38,7 +37,6 @@ func GetEventsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(events)
 }
 
-// Only attendees can register
 func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
@@ -60,13 +58,11 @@ func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Confirm event exists
 	if _, err := database.GetEventByID(eventID); err != nil {
 		http.Error(w, "Event not found", http.StatusNotFound)
 		return
 	}
 
-	// Check existing registration
 	isRegistered, err := database.IsUserRegisteredForEvent(userID, eventID)
 	if err != nil {
 		http.Error(w, "Error checking registration status", http.StatusInternalServerError)
@@ -103,7 +99,6 @@ func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reg)
 }
 
-// Attendees can cancel their own registration
 func CancelRegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	if !ok {
@@ -144,7 +139,6 @@ func CancelRegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Registration cancelled"})
 }
 
-// Only organisers can manage events
 func GetOrganizerEventsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
 	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)

@@ -6,5 +6,19 @@ type User struct {
 	Email    string
 	Phone    string
 	Password string
-	Role     string
+	Role     string 
+	Roles    []Role
+}
+
+type Role struct {
+	ID          int
+	Name        string
+	Description string
+}
+
+type UserRole struct {
+	UserID     int
+	RoleID     int
+	RoleName   string
+	AssignedAt string
 }

@@ -1,6 +1,5 @@
 package models
 
-// Event represents an event in the system
 type Event struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
@@ -12,7 +11,6 @@ type Event struct {
 	Status      string `json:"status"`
 }
 
-// EventWithRegistrationCount includes registration statistics with the event
 type EventWithRegistrationCount struct {
 	Event
 	RegisteredCount int `json:"registeredCount"`

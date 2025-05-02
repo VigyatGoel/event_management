@@ -18,19 +18,16 @@ func main() {
 
 	router := mux.NewRouter()
 
-	// Public auth endpoints
 	router.HandleFunc("/signup", auth.SignupHandler).Methods("POST", "OPTIONS")
 	router.HandleFunc("/login", auth.LoginHandler).Methods("POST", "OPTIONS")
 	router.HandleFunc("/validate_token", auth.ValidateTokenHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/logout", auth.LogoutHandler).Methods("POST", "OPTIONS")
 
-	// Admin-only routes (middleware+handler will reject non-admins)
 	adminRouter := router.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(auth.JWTMiddleware)
 	adminRouter.HandleFunc("/users", handlers.GetAllUsersHandler).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/users/deactivate", handlers.DeactivateUserHandler).Methods("POST", "OPTIONS")
 
-	// Organiser-only routes
 	organiserRouter := router.PathPrefix("/organiser").Subrouter()
 	organiserRouter.Use(auth.JWTMiddleware)
 	organiserRouter.HandleFunc("/events", handlers.GetOrganizerEventsHandler).Methods("GET", "OPTIONS")
@@ -39,7 +36,6 @@ func main() {
 	organiserRouter.HandleFunc("/events/{id:[0-9]+}", handlers.UpdateEventHandler).Methods("PUT", "OPTIONS")
 	organiserRouter.HandleFunc("/events/{id:[0-9]+}", handlers.CancelEventHandler).Methods("DELETE", "OPTIONS")
 
-	// Authenticated user routes (attendee or organiser/admin can view, but handlers enforce role)
 	userRouter := router.PathPrefix("").Subrouter()
 	userRouter.Use(auth.JWTMiddleware)
 	userRouter.HandleFunc("/events", handlers.GetEventsHandler).Methods("GET", "OPTIONS")
@@ -49,7 +45,6 @@ func main() {
 	userRouter.HandleFunc("/user/profile", handlers.UpdateUserProfileHandler).Methods("PUT", "OPTIONS")
 	userRouter.HandleFunc("/user/registrations", handlers.GetUserRegistrationsHandler).Methods("GET", "OPTIONS")
 
-	// CORS wrapper
 	cors := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")

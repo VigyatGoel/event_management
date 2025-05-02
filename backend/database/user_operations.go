@@ -10,9 +10,14 @@ type UserData struct {
 	Email string
 }
 
-// Fetch users by role
 func getUsersByRole(role string) ([]UserData, error) {
-	query := "SELECT name, email FROM user WHERE isalive = 1 AND role = ?"
+	query := `
+		SELECT u.name, u.email 
+		FROM user u
+		JOIN user_role ur ON u.user_id = ur.user_id
+		JOIN role r ON ur.role_id = r.role_id
+		WHERE u.isalive = 1 AND r.name = ?
+	`
 
 	rows, err := DB.Query(query, role)
 	if err != nil {
@@ -36,7 +41,6 @@ func getUsersByRole(role string) ([]UserData, error) {
 	return users, nil
 }
 
-// These are wrappers calling getUsersByRole with appropriate roles
 func GetAllAdmins() ([]UserData, error) {
 	return getUsersByRole("admin")
 }
@@ -56,40 +60,63 @@ type UserWithRole struct {
 }
 
 func GetAllUserRoles() ([]UserWithRole, error) {
-	var allUsers []UserWithRole
+	query := `
+		SELECT u.name, u.email, r.name as role
+		FROM user u
+		JOIN user_role ur ON u.user_id = ur.user_id
+		JOIN role r ON ur.role_id = r.role_id
+		WHERE u.isalive = 1
+		ORDER BY u.name
+	`
 
-	roles := []string{"admin", "organiser", "attendee"}
-	for _, role := range roles {
-		users, err := getUsersByRole(role)
-		if err != nil {
+	rows, err := DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var allUsers []UserWithRole
+	for rows.Next() {
+		var user UserWithRole
+		if err := rows.Scan(&user.Name, &user.Email, &user.Role); err != nil {
 			return nil, err
 		}
-		for _, user := range users {
-			allUsers = append(allUsers, UserWithRole{
-				Name:  user.Name,
-				Email: user.Email,
-				Role:  role,
-			})
-		}
+		allUsers = append(allUsers, user)
 	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return allUsers, nil
 }
 
 func DeactivateUser(email string, role string) error {
-	query := "UPDATE user SET isalive = 0 WHERE email = ? AND role = ?"
-
-	result, err := DB.Exec(query, email, role)
+	var userID int
+	err := DB.QueryRow("SELECT user_id FROM user WHERE email = ? AND isalive = 1", email).Scan(&userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("no user found with email %s", email)
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	var roleID int
+	err = DB.QueryRow("SELECT role_id FROM role WHERE name = ?", role).Scan(&roleID)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid role: %s", role)
 	}
 
-	if rowsAffected == 0 {
+	var count int
+	err = DB.QueryRow(
+		"SELECT COUNT(*) FROM user_role WHERE user_id = ? AND role_id = ?",
+		userID, roleID,
+	).Scan(&count)
+
+	if err != nil || count == 0 {
 		return fmt.Errorf("no user found with email %s and role %s", email, role)
+	}
+
+	_, err = DB.Exec("UPDATE user SET isalive = 0 WHERE user_id = ?", userID)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -99,10 +126,22 @@ func GetUserByID(userID int) (models.User, error) {
 	var user models.User
 
 	err := DB.QueryRow(`
-		SELECT user_id, name, email, phone, password, role
+		SELECT user_id, name, email, phone, password
 		FROM user
 		WHERE user_id = ? AND isalive = 1
-	`, userID).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Password, &user.Role)
+	`, userID).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Password)
+
+	if err != nil {
+		return user, err
+	}
+
+	err = DB.QueryRow(`
+		SELECT r.name
+		FROM role r
+		JOIN user_role ur ON r.role_id = ur.role_id
+		WHERE ur.user_id = ?
+		LIMIT 1
+	`, userID).Scan(&user.Role)
 
 	return user, err
 }
