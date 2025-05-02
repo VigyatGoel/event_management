@@ -17,13 +17,11 @@ function Home({ user, onLogout }) {
     phone: ''
   });
 
-  // Show status messages
   const showStatusMessage = (type, text) => {
     setStatusMessage({ type, text });
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
-  // Fetch all available events
   const fetchAvailableEvents = useCallback(async (token) => {
     try {
       const response = await fetch('http://localhost:8080/events', {
@@ -39,7 +37,6 @@ function Home({ user, onLogout }) {
     }
   }, []);
 
-  // Fetch user's registrations
   const fetchMyRegistrations = useCallback(async (token) => {
     try {
       const response = await fetch('http://localhost:8080/user/registrations', {
@@ -47,6 +44,7 @@ function Home({ user, onLogout }) {
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
+      console.log("Fetched registrations from backend:", data); // <-- Add this log
       setMyRegistrations(data || []);
     } catch (err) {
       console.error("Failed to fetch registrations:", err);
@@ -55,7 +53,6 @@ function Home({ user, onLogout }) {
     }
   }, []);
 
-  // Register for an event
   const registerForEvent = useCallback(async (eventId) => {
     const token = localStorage.getItem('token');
     if (!token) return navigate("/login");
@@ -81,7 +78,6 @@ function Home({ user, onLogout }) {
     }
   }, [navigate, fetchAvailableEvents, fetchMyRegistrations]);
 
-  // Cancel a registration
   const cancelRegistration = useCallback(async (registrationId) => {
     const token = localStorage.getItem('token');
     if (!token) return navigate("/login");
@@ -107,7 +103,6 @@ function Home({ user, onLogout }) {
     }
   }, [navigate, fetchAvailableEvents, fetchMyRegistrations]);
 
-  // Fetch user profile data
   const fetchUserProfile = useCallback(async (token) => {
     try {
       const response = await fetch('http://localhost:8080/user/profile', {
@@ -138,7 +133,6 @@ function Home({ user, onLogout }) {
     }
   }, [user]);
 
-  // Save user profile changes
   const updateUserProfile = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -175,7 +169,6 @@ function Home({ user, onLogout }) {
     }
   };
 
-  // Initial data fetch
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -230,8 +223,8 @@ function Home({ user, onLogout }) {
     );
   };
 
-  const registeredEventIds = new Set(myRegistrations.map(reg => reg.eventID));
-  const registrationMap = new Map(myRegistrations.map(reg => [reg.eventID, reg.id]));
+  const registeredEventIds = new Set(myRegistrations.map(reg => reg.eventId)); // <-- changed from reg.eventID
+  const registrationMap = new Map(myRegistrations.map(reg => [reg.eventId, reg.id])); // <-- changed from reg.eventID
 
   const myEvents = availableEvents.filter(event => registeredEventIds.has(event.id));
   const otherEvents = availableEvents.filter(event => !registeredEventIds.has(event.id));

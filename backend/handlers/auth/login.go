@@ -27,15 +27,13 @@ func JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		tokenParts := strings.Split(authHeader, " ")
-		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
 			writeJSONError(w, "Invalid authorization format", http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := tokenParts[1]
-
-		claims, err := utils.ValidateJWT(tokenString)
+		claims, err := utils.ValidateJWT(parts[1])
 		if err != nil {
 			writeJSONError(w, "Unauthorized. Invalid or expired token.", http.StatusUnauthorized)
 			return
@@ -51,56 +49,31 @@ func JWTMiddleware(next http.Handler) http.Handler {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		writeJSONError(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
 
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-	role := r.FormValue("role")
 
-	if email == "" || password == "" || role == "" {
-		writeJSONError(w, "Email, password and role are required", http.StatusBadRequest)
+	if email == "" || password == "" {
+		writeJSONError(w, "Email and password are required", http.StatusBadRequest)
 		return
 	}
 
-	var searchQuery string
-	var userId int
-	var name, storedPassword, userEmail, phone string
-
-	switch role {
-	case "admin":
-		searchQuery = `
-			SELECT admin_id, name, email, phone, password FROM admin WHERE email=? AND isalive = 1
-		`
-	case "organiser":
-		searchQuery = `
-			SELECT organiser_id, name, email, phone, password FROM organiser WHERE email=? AND isalive = 1
-		`
-	case "attendee":
-		searchQuery = `
-			SELECT attendee_id, name, email, phone, password FROM attendee WHERE email=? AND isalive = 1
-		`
-	default:
-		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
-		return
-	}
-
-	err = database.DB.QueryRow(searchQuery, email).Scan(&userId, &name, &userEmail, &phone, &storedPassword)
+	user, err := database.AuthenticateUser(email)
 	if err != nil {
 		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		writeJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	token, err := utils.GenerateJWT(userId, email, name, role)
+	token, err := utils.GenerateJWT(user.ID, user.Email, user.Name, user.Role)
 	if err != nil {
 		writeJSONError(w, "Failed to generate authentication token", http.StatusInternalServerError)
 		return
@@ -110,9 +83,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Login successful",
 		"token":   token,
-		"name":    name,
-		"email":   email,
-		"role":    role,
+		"name":    user.Name,
+		"email":   user.Email,
+		"role":    user.Role,
 	})
 }
 

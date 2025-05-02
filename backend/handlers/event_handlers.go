@@ -14,11 +14,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{"message": message})
-}
+
 
 type eventRequest struct {
 	Name        string `json:"name"`
@@ -38,16 +34,14 @@ func GetEventsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(events); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(events)
 }
 
 func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "attendee" {
+		http.Error(w, "Only attendees can register", http.StatusForbidden)
 		return
 	}
 
@@ -64,7 +58,6 @@ func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if _, err := database.GetEventByID(eventID); err != nil {
 		http.Error(w, "Event not found", http.StatusNotFound)
 		return
@@ -77,21 +70,21 @@ func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isRegistered {
-		http.Error(w, "User is already registered for this event", http.StatusConflict)
+		http.Error(w, "Already registered for this event", http.StatusConflict)
 		return
 	}
 
-	registration := models.Registration{
+	reg := models.Registration{
 		UserID:           userID,
 		EventID:          eventID,
 		RegistrationDate: time.Now().Format("2006-01-02 15:04:05"),
 		Status:           "confirmed",
 	}
 
-	registrationID, err := database.CreateRegistration(registration)
+	registrationID, err := database.CreateRegistration(reg)
 	if err != nil {
 		if err.Error() == "event is full" {
-			http.Error(w, "Event is at full capacity", http.StatusBadRequest)
+			http.Error(w, "Event at full capacity", http.StatusBadRequest)
 		} else {
 			http.Error(w, "Error creating registration", http.StatusInternalServerError)
 			log.Printf("Error creating registration: %v", err)
@@ -99,11 +92,11 @@ func RegisterForEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	registration.ID = registrationID
+	reg.ID = registrationID
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(registration)
+	json.NewEncoder(w).Encode(reg)
 }
 
 func CancelRegistrationHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,12 +121,11 @@ func CancelRegistrationHandler(w http.ResponseWriter, r *http.Request) {
 
 	isOwner, err := database.IsRegistrationOwner(regID, userID)
 	if err != nil {
-		http.Error(w, "Error verifying registration ownership", http.StatusInternalServerError)
+		http.Error(w, "Error verifying ownership", http.StatusInternalServerError)
 		return
 	}
-
 	if !isOwner {
-		http.Error(w, "Unauthorized to cancel this registration", http.StatusForbidden)
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -144,20 +136,18 @@ func CancelRegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Registration cancelled successfully",
-	})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Registration cancelled"})
 }
 
 func GetOrganizerEventsHandler(w http.ResponseWriter, r *http.Request) {
-	organizerID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "organiser" {
+		http.Error(w, "Only organisers can view their events", http.StatusForbidden)
 		return
 	}
 
-	events, err := database.GetEventsByOrganizerID(organizerID)
+	events, err := database.GetEventsByOrganizerID(userID)
 	if err != nil {
 		http.Error(w, "Error retrieving events", http.StatusInternalServerError)
 		log.Printf("Error retrieving events: %v", err)
@@ -165,17 +155,14 @@ func GetOrganizerEventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(events); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(events)
 }
 
 func GetEventRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
-	organizerID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "organiser" {
+		http.Error(w, "Only organisers can view registrations", http.StatusForbidden)
 		return
 	}
 
@@ -192,57 +179,54 @@ func GetEventRegistrationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isOwner, err := database.IsEventOrganizer(eventID, organizerID); err != nil {
-		http.Error(w, "Error verifying event ownership", http.StatusInternalServerError)
+	isOwner, err := database.IsEventOrganizer(eventID, userID)
+	if err != nil {
+		http.Error(w, "Error verifying ownership", http.StatusInternalServerError)
 		return
-	} else if !isOwner {
-		http.Error(w, "Unauthorized to access this event's registrations", http.StatusForbidden)
+	}
+	if !isOwner {
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	registrations, err := database.GetRegistrationsByEventID(eventID)
+	regs, err := database.GetRegistrationsByEventID(eventID)
 	if err != nil {
 		http.Error(w, "Error retrieving registrations", http.StatusInternalServerError)
-		log.Printf("Error retrieving registrations: %v", err)
+		log.Printf("Error: %v", err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(registrations); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(regs)
 }
 
 func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
-	organizerID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		writeJSONError(w, "Organizer ID not found in context", http.StatusInternalServerError)
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "organiser" {
+		writeJSONError(w, "Only organisers can create events", http.StatusForbidden)
 		return
 	}
 
 	var req eventRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		writeJSONError(w, "Invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if req.Name == "" || req.Date == "" || req.Location == "" {
-		writeJSONError(w, "Event name, date, and location are required", http.StatusBadRequest)
+		writeJSONError(w, "Name, date, location required", http.StatusBadRequest)
 		return
 	}
-
-	eventDate, err := time.Parse("2006-01-02", req.Date)
+		eventDate, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		writeJSONError(w, "Invalid date format. Please use YYYY-MM-DD.", http.StatusBadRequest)
+		writeJSONError(w, "Date must be YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
 
-	event := models.Event{
-		OrganizerID: organizerID,
+	e := models.Event{
+		OrganizerID: userID,
 		Name:        req.Name,
 		Description: req.Description,
 		Date:        eventDate.Format("2006-01-02"),
@@ -250,88 +234,88 @@ func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
 		Capacity:    req.Capacity,
 	}
 
-	createdEvent, err := database.CreateEvent(event)
+	created, err := database.CreateEvent(e)
 	if err != nil {
-		log.Printf("Error creating event: %v", err)
+		log.Printf("Error: %v", err)
 		writeJSONError(w, "Failed to create event", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(createdEvent)
+	json.NewEncoder(w).Encode(created)
 }
 
 func UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
 	if !ok {
-		writeJSONError(w, "Event ID is required", http.StatusBadRequest)
+		writeJSONError(w, "Event ID required", http.StatusBadRequest)
 		return
 	}
 	eventID, err := strconv.Atoi(idStr)
 	if err != nil {
-		writeJSONError(w, "Invalid Event ID format", http.StatusBadRequest)
+		writeJSONError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	organizerID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		writeJSONError(w, "Organizer ID not found in context", http.StatusInternalServerError)
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "organiser" {
+		writeJSONError(w, "Only organisers can update events", http.StatusForbidden)
 		return
 	}
 
 	var req eventRequest
-	err = json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		writeJSONError(w, "Invalid request body format", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "Invalid body format", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if req.Name == "" || req.Date == "" || req.Location == "" {
-		writeJSONError(w, "Event name, date, and location are required", http.StatusBadRequest)
+		writeJSONError(w, "Name, date, location required", http.StatusBadRequest)
 		return
 	}
 
-	eventDate, err := time.Parse("2006-01-02", req.Date)
+	eDate, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		writeJSONError(w, "Invalid date format. Please use YYYY-MM-DD.", http.StatusBadRequest)
+		writeJSONError(w, "Date must be YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
 
-	event := models.Event{
+	e := models.Event{
 		ID:          eventID,
-		OrganizerID: organizerID,
+		OrganizerID: userID,
 		Name:        req.Name,
 		Description: req.Description,
-		Date:        eventDate.Format("2006-01-02"),
+		Date:        eDate.Format("2006-01-02"),
 		Location:    req.Location,
 		Capacity:    req.Capacity,
 	}
 
-	updatedEvent, err := database.UpdateEvent(event)
+	updated, err := database.UpdateEvent(e)
 	if err != nil {
-		if err.Error() == "event not found" {
-			writeJSONError(w, "Event not found", http.StatusNotFound)
-		} else if err.Error() == "unauthorized" {
-			writeJSONError(w, "You do not have permission to update this event", http.StatusForbidden)
-		} else {
-			log.Printf("Error updating event %d: %v", eventID, err)
-			writeJSONError(w, "Failed to update event", http.StatusInternalServerError)
+		switch err.Error() {
+		case "event not found":
+			writeJSONError(w, "Not found", http.StatusNotFound)
+		case "no permission or event not found":
+			writeJSONError(w, "Forbidden", http.StatusForbidden)
+		default:
+			writeJSONError(w, "Failed to update", http.StatusInternalServerError)
 		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(updatedEvent)
+	json.NewEncoder(w).Encode(updated)
 }
 
 func CancelEventHandler(w http.ResponseWriter, r *http.Request) {
-	organizerID, ok := r.Context().Value(utils.UserIDKey).(int)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	userID, ok := r.Context().Value(utils.UserIDKey).(int)
+	userRole, _ := r.Context().Value(utils.UserRoleKey).(string)
+	if !ok || userRole != "organiser" {
+		http.Error(w, "Only organisers can cancel events", http.StatusForbidden)
 		return
 	}
 
@@ -348,11 +332,13 @@ func CancelEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isOwner, err := database.IsEventOrganizer(eventID, organizerID); err != nil {
-		http.Error(w, "Error verifying event ownership", http.StatusInternalServerError)
+	isOwner, err := database.IsEventOrganizer(eventID, userID)
+	if err != nil {
+		http.Error(w, "Error verifying ownership", http.StatusInternalServerError)
 		return
-	} else if !isOwner {
-		http.Error(w, "Unauthorized to cancel this event", http.StatusForbidden)
+	}
+	if !isOwner {
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -363,8 +349,5 @@ func CancelEventHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Event cancelled successfully",
-	})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Event cancelled"})
 }

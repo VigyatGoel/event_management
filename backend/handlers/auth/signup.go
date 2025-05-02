@@ -4,17 +4,15 @@ import (
 	"encoding/json"
 	"event_management/backend/database"
 	"event_management/backend/models"
-	"fmt"
+
 	"net/http"
 	"strings"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		writeJSONError(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
@@ -25,10 +23,13 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	phone := r.FormValue("phone")
 	role := strings.ToLower(r.FormValue("role"))
 
-	fmt.Println(role)
-
 	if name == "" || email == "" || password == "" || phone == "" || role == "" {
 		writeJSONError(w, "All fields are required", http.StatusBadRequest)
+		return
+	}
+
+	if role != "admin" && role != "organiser" && role != "attendee" {
+		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
 		return
 	}
 
@@ -38,33 +39,14 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdAt := time.Now()
-	isAlive := true
-
-	var insertQuery string
-
-	switch role {
-	case "admin":
-		insertQuery = `
-			INSERT INTO admin (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	case "organiser":
-		insertQuery = `
-			INSERT INTO organiser (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	case "attendee":
-		insertQuery = `
-			INSERT INTO attendee (name, email, phone, password, isalive, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`
-	default:
-		writeJSONError(w, "Invalid role specified", http.StatusBadRequest)
-		return
+	user := models.User{
+		Name:  name,
+		Email: email,
+		Phone: phone,
+		Role:  role,
 	}
 
-	_, err = database.DB.Exec(insertQuery, name, email, phone, hashedPassword, isAlive, createdAt)
+	err = database.CreateUser(user, hashedPassword)
 	if err != nil {
 		writeJSONError(w, "Email already registered or DB error", http.StatusBadRequest)
 		return

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"event_management/backend/database"
-	"event_management/backend/handlers"
-	"event_management/backend/handlers/auth"
 	"fmt"
 	"log"
 	"net/http"
+
+	"event_management/backend/database"
+	"event_management/backend/handlers"
+	"event_management/backend/handlers/auth"
 
 	"github.com/gorilla/mux"
 )
@@ -27,13 +28,13 @@ func main() {
 	adminRouter.HandleFunc("/users", handlers.GetAllUsersHandler).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/users/deactivate", handlers.DeactivateUserHandler).Methods("POST", "OPTIONS")
 
-	organizerRouter := router.PathPrefix("/organizer").Subrouter()
-	organizerRouter.Use(auth.JWTMiddleware)
-	organizerRouter.HandleFunc("/all_events", handlers.GetOrganizerEventsHandler).Methods("GET", "OPTIONS")
-	organizerRouter.HandleFunc("/events/{id:[0-9]+}/registrations", handlers.GetEventRegistrationsHandler).Methods("GET", "OPTIONS")
-	organizerRouter.HandleFunc("/create_events", handlers.CreateEventHandler).Methods("POST", "OPTIONS")
-	organizerRouter.HandleFunc("/update_events/{id:[0-9]+}", handlers.UpdateEventHandler).Methods("PUT", "OPTIONS")
-	organizerRouter.HandleFunc("/delete_events/{id:[0-9]+}", handlers.CancelEventHandler).Methods("DELETE", "OPTIONS")
+	organiserRouter := router.PathPrefix("/organiser").Subrouter()
+	organiserRouter.Use(auth.JWTMiddleware)
+	organiserRouter.HandleFunc("/events", handlers.GetOrganizerEventsHandler).Methods("GET", "OPTIONS")
+	organiserRouter.HandleFunc("/events/{id:[0-9]+}/registrations", handlers.GetEventRegistrationsHandler).Methods("GET", "OPTIONS")
+	organiserRouter.HandleFunc("/events", handlers.CreateEventHandler).Methods("POST", "OPTIONS")
+	organiserRouter.HandleFunc("/events/{id:[0-9]+}", handlers.UpdateEventHandler).Methods("PUT", "OPTIONS")
+	organiserRouter.HandleFunc("/events/{id:[0-9]+}", handlers.CancelEventHandler).Methods("DELETE", "OPTIONS")
 
 	userRouter := router.PathPrefix("").Subrouter()
 	userRouter.Use(auth.JWTMiddleware)
@@ -44,29 +45,26 @@ func main() {
 	userRouter.HandleFunc("/user/profile", handlers.UpdateUserProfileHandler).Methods("PUT", "OPTIONS")
 	userRouter.HandleFunc("/user/registrations", handlers.GetUserRegistrationsHandler).Methods("GET", "OPTIONS")
 
-	corsHandler := func(h http.Handler) http.Handler {
+	cors := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "86400")
-
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-
 			h.ServeHTTP(w, r)
 		})
 	}
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: corsHandler(router),
+		Handler: cors(router),
 	}
 
 	log.Println("Server running on http://localhost:8080")
-
 	log.Fatal(server.ListenAndServe())
 }

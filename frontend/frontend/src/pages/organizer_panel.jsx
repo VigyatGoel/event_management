@@ -23,7 +23,7 @@ function OrganizerPanel({ user, onLogout }) {
         return;
       }
       
-      const response = await fetch('http://localhost:8080/organizer/all_events', {
+      const response = await fetch('http://localhost:8080/organiser/events', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -61,7 +61,7 @@ function OrganizerPanel({ user, onLogout }) {
         return;
       }
       
-      const response = await fetch(`http://localhost:8080/organizer/events/${eventId}/registrations`, {
+      const response = await fetch(`http://localhost:8080/organiser/events/${eventId}/registrations`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -99,7 +99,7 @@ function OrganizerPanel({ user, onLogout }) {
         return;
       }
       
-      const response = await fetch('http://localhost:8080/organizer/create_events', {
+      const response = await fetch('http://localhost:8080/organiser/events', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -149,7 +149,7 @@ function OrganizerPanel({ user, onLogout }) {
         capacity: parseInt(eventData.capacity, 10) || 0
       };
 
-      const response = await fetch(`http://localhost:8080/organizer/update_events/${eventId}`, {
+      const response = await fetch(`http://localhost:8080/organiser/events/${eventId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -197,7 +197,7 @@ function OrganizerPanel({ user, onLogout }) {
         return;
       }
       
-      const response = await fetch(`http://localhost:8080/organizer/delete_events/${eventId}`, {
+      const response = await fetch(`http://localhost:8080/organiser/events/${eventId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
